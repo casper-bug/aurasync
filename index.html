@@ -1,1018 +1,1065 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { initializeApp } from 'firebase/app';
-import {
-  getAuth,
-  signInAnonymously,
-  onAuthStateChanged,
-} from 'firebase/auth';
-import {
-  getFirestore,
-  doc,
-  getDoc,
-  setDoc,
-  onSnapshot,
-  deleteDoc, // Import deleteDoc for host cleanup
-} from 'firebase/firestore';
-
-// Ensure Tailwind CSS is loaded (assuming it's globally available in the environment)
-// <script src="https://cdn.tailwindcss.com"></script>
-
-function App() {
-  const [db, setDb] = useState(null);
-  const [auth, setAuth] = useState(null);
-  const [userId, setUserId] = useState(null);
-  const [isAuthReady, setIsAuthReady] = useState(false); // True when auth state is known (user or null)
-  const [sessionCode, setSessionCode] = useState('');
-  const [currentSessionId, setCurrentSessionId] = useState('');
-  const [isHost, setIsHost] = useState(false);
-  const [statusMessage, setStatusMessage] = useState('');
-  const [joinInputCode, setJoinInputCode] = useState('');
-  const unsubscribeRef = useRef(null); // To store the unsubscribe function for Firestore listener
-  const [isCreatingSession, setIsCreatingSession] = useState(false); // New state for loading indicator
-
-  // Audio Source States
-  const [sourceType, setSourceType] = useState('local'); // 'local', 'youtube'
-  const [localAudioFile, setLocalAudioFile] = useState(null);
-  const [localAudioUrl, setLocalAudioUrl] = useState('');
-  const [localAudioFileName, setLocalAudioFileName] = useState('');
-  const [youtubeVideoId, setYoutubeVideoId] = useState('');
-
-  // Player Refs
-  const audioRef = useRef(null); // For local audio
-  const youtubePlayerRef = useRef(null); // For YouTube IFrame Player API instance
-  const youtubePlayerContainerRef = useRef(null); // Ref for YouTube player div
-
-  // Playback States
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(0);
-
-  // Queue State
-  const [queue, setQueue] = useState([]); // Array of { sourceType, url/videoId, fileName/title }
-  const [currentQueueIndex, setCurrentQueueIndex] = useState(0);
-  const [currentTrackTitle, setCurrentTrackTitle] = useState('');
-
-  // Player Settings
-  const [volume, setVolume] = useState(100); // 0-100
-  const [autoplay, setAutoplay] = useState(false);
-
-  // Firebase initialization and authentication
-  useEffect(() => {
-    try {
-      // Use the provided Firebase configuration directly
-      const firebaseConfig = {
-        apiKey: "AIzaSyAvdsISdxERqIrZbyecvwKsf2V7lFuPWkc",
-        authDomain: "zync-2baf2.firebaseapp.com",
-        projectId: "zync-2baf2",
-        storageBucket: "zync-2baf2.firebasestorage.app",
-        messagingSenderId: "388386446447",
-        appId: "1:388386446447:web:9659826f61a4aaec01019a"
-      };
-
-      if (Object.keys(firebaseConfig).length === 0 || !firebaseConfig.apiKey) {
-        setStatusMessage('Firebase configuration is incomplete or not found.');
-        return;
-      }
-
-      const app = initializeApp(firebaseConfig);
-      const firestore = getFirestore(app);
-      const authentication = getAuth(app);
-
-      setDb(firestore);
-      setAuth(authentication);
-
-      setStatusMessage('Authenticating...'); // Initial status
-
-      // Sign in anonymously when a custom config is provided
-      const signIn = async () => {
-        try {
-          await signInAnonymously(authentication);
-        } catch (error) {
-          console.error('Firebase authentication error during signInAnonymously:', error);
-          setStatusMessage(`Authentication failed: ${error.message}`);
-          setIsAuthReady(true); // Authentication attempt finished, even if failed
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AuraSync</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
         }
-      };
-
-      signIn();
-
-      // Listen for auth state changes
-      const unsubscribeAuth = onAuthStateChanged(authentication, (user) => {
-        if (user) {
-          setUserId(user.uid);
-          setIsAuthReady(true); // Auth is ready and successful
-          setStatusMessage('Authenticated successfully.');
-        } else {
-          setUserId(null);
-          setIsAuthReady(true); // Auth state is known (no user logged in)
-          setStatusMessage('Not authenticated. Anonymous sign-in failed or not available.');
+        /* Custom styles for range input thumb */
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #a78bfa; /* purple-400 */
+            cursor: pointer;
+            box-shadow: 0 0 0 4px rgba(167, 139, 250, 0.5); /* focus ring effect */
+            transition: background .15s ease-in-out, box-shadow .15s ease-in-out;
         }
-      });
-
-      return () => unsubscribeAuth();
-    } catch (error) {
-      console.error('Error initializing Firebase:', error);
-      setStatusMessage(`Error initializing Firebase: ${error.message}`);
-    }
-  }, []);
-
-  // Load YouTube IFrame Player API script
-  useEffect(() => {
-    if (typeof window.YT === 'undefined' || typeof window.YT.Player === 'undefined') {
-      const tag = document.createElement('script');
-      tag.src = 'https://www.youtube.com/iframe_api';
-      const firstScriptTag = document.getElementsByTagName('script')[0];
-      firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
-    }
-  }, []);
-
-  // Function to generate a random session ID
-  const generateSessionId = useCallback(() => {
-    return Math.random().toString(36).substring(2, 8).toUpperCase();
-  }, []);
-
-  // Host: Create a new session
-  const createSession = async () => {
-    if (!db) {
-      setStatusMessage('Firebase database not initialized. Please wait or check console for errors.');
-      console.log('createSession called but db is null. isAuthReady:', isAuthReady, 'userId:', userId);
-      return;
-    }
-    if (!userId) {
-      setStatusMessage('User not authenticated. Please wait for authentication to complete.');
-      console.log('createSession called but userId is null. isAuthReady:', isAuthReady);
-      return;
-    }
-    if (!isAuthReady) {
-      setStatusMessage('Authentication is still in progress. Please wait.');
-      console.log('createSession called but isAuthReady is false.');
-      return;
-    }
-
-    setIsCreatingSession(true); // Set loading state
-    setStatusMessage('Creating session...');
-    const newSessionId = generateSessionId();
-    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-    const sessionDocRef = doc(db, `artifacts/${appId}/public/data/audioSessions`, newSessionId);
-
-    console.log('Attempting to create session...');
-    console.log('DB instance:', db);
-    console.log('User ID:', userId);
-    console.log('App ID for Firestore path:', appId);
-    console.log('Session Doc Ref path:', sessionDocRef.path);
-
-
-    try {
-      await setDoc(sessionDocRef, {
-        hostId: userId,
-        sourceType: 'local', // Default to local
-        queue: [],
-        currentQueueIndex: 0,
-        isPlaying: false,
-        currentTime: 0,
-        timestamp: Date.now(),
-        volume: 100,
-        autoplay: false,
-      });
-      setSessionCode(newSessionId);
-      setCurrentSessionId(newSessionId);
-      setIsHost(true);
-      setSourceType('local'); // Set host's source type to default
-      setQueue([]);
-      setCurrentQueueIndex(0);
-      setIsPlaying(false);
-      setCurrentTime(0);
-      setDuration(0);
-      setVolume(100);
-      setAutoplay(false);
-      setStatusMessage(`Session created! Share code: ${newSessionId}`);
-      // Start listening to the session as the host to keep local state updated
-      listenToSession(newSessionId);
-    } catch (error) {
-      console.error('Error creating session:', error);
-      setStatusMessage(`Error creating session: ${error.message}`);
-    } finally {
-      setIsCreatingSession(false); // Reset loading state
-    }
-  };
-
-  // Host: Update session state in Firestore
-  const updateSessionState = useCallback(async (updates) => {
-    if (!db || !currentSessionId || !isHost) return;
-    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-    const sessionDocRef = doc(db, `artifacts/${appId}/public/data/audioSessions`, currentSessionId);
-
-    console.log('Attempting to update session state...');
-    console.log('Session Doc Ref path for update:', sessionDocRef.path);
-    console.log('Updates being sent:', updates);
-
-    try {
-      await setDoc(sessionDocRef, { ...updates, timestamp: Date.now() }, { merge: true });
-    } catch (error) {
-      console.error('Error updating session state:', error);
-      setStatusMessage(`Error syncing: ${error.message}`);
-    }
-  }, [db, currentSessionId, isHost]);
-
-  // Host: Playback controls
-  const handlePlay = () => {
-    setIsPlaying(true);
-    updateSessionState({ isPlaying: true });
-  };
-
-  const handlePause = () => {
-    setIsPlaying(false);
-    updateSessionState({ isPlaying: false });
-  };
-
-  const handleTimeUpdate = () => {
-    if (sourceType === 'local' && audioRef.current) {
-      setCurrentTime(audioRef.current.currentTime);
-      if (isHost && Math.abs(audioRef.current.currentTime - currentTime) > 1) {
-        updateSessionState({ currentTime: audioRef.current.currentTime });
-      }
-    } else if (sourceType === 'youtube' && youtubePlayerRef.current && typeof youtubePlayerRef.current.getCurrentTime === 'function') {
-      const ytCurrentTime = youtubePlayerRef.current.getCurrentTime();
-      setCurrentTime(ytCurrentTime);
-      if (isHost && Math.abs(ytCurrentTime - currentTime) > 1) {
-        updateSessionState({ currentTime: ytCurrentTime });
-      }
-    }
-  };
-
-  const handleSeek = (event) => {
-    const newTime = parseFloat(event.target.value);
-    setCurrentTime(newTime);
-
-    if (sourceType === 'local' && audioRef.current) {
-      audioRef.current.currentTime = newTime;
-      updateSessionState({ currentTime: newTime });
-    } else if (sourceType === 'youtube' && youtubePlayerRef.current && typeof youtubePlayerRef.current.seekTo === 'function') {
-      youtubePlayerRef.current.seekTo(newTime, true);
-      updateSessionState({ currentTime: newTime });
-    }
-  };
-
-  const handleLoadedMetadata = () => {
-    if (sourceType === 'local' && audioRef.current) {
-      setDuration(audioRef.current.duration);
-    }
-  };
-
-  // Host: Handle track ending
-  const handleTrackEnded = useCallback(async () => {
-    if (isHost) {
-      const nextIndex = currentQueueIndex + 1;
-      if (nextIndex < queue.length) {
-        await updateSessionState({
-          currentQueueIndex: nextIndex,
-          isPlaying: autoplay, // Play next if autoplay is true
-          currentTime: 0,
-        });
-      } else {
-        // End of queue
-        await updateSessionState({
-          isPlaying: false,
-          currentTime: 0,
-          currentQueueIndex: 0, // Reset to start or keep at end
-        });
-        setStatusMessage('Queue finished.');
-      }
-    }
-  }, [isHost, currentQueueIndex, queue, autoplay, updateSessionState]);
-
-  // Host: Navigate queue
-  const playNext = async () => {
-    if (isHost && currentQueueIndex < queue.length - 1) {
-      await updateSessionState({
-        currentQueueIndex: currentQueueIndex + 1,
-        isPlaying: true,
-        currentTime: 0,
-      });
-    } else if (isHost && currentQueueIndex === queue.length - 1) {
-      setStatusMessage('End of queue.');
-    }
-  };
-
-  const playPrevious = async () => {
-    if (isHost && currentQueueIndex > 0) {
-      await updateSessionState({
-        currentQueueIndex: currentQueueIndex - 1,
-        isPlaying: true,
-        currentTime: 0,
-      });
-    } else if (isHost && currentQueueIndex === 0) {
-      setStatusMessage('Beginning of queue.');
-    }
-  };
-
-  // Host: Handle volume change
-  const handleVolumeChange = async (e) => {
-    const newVolume = parseInt(e.target.value, 10);
-    setVolume(newVolume);
-    if (sourceType === 'local' && audioRef.current) {
-      audioRef.current.volume = newVolume / 100;
-    } else if (sourceType === 'youtube' && youtubePlayerRef.current && typeof youtubePlayerRef.current.setVolume === 'function') {
-      youtubePlayerRef.current.setVolume(newVolume);
-    }
-    await updateSessionState({ volume: newVolume });
-  };
-
-  // Host: Handle autoplay toggle
-  const handleAutoplayToggle = async () => {
-    const newAutoplay = !autoplay;
-    setAutoplay(newAutoplay);
-    await updateSessionState({ autoplay: newAutoplay });
-  };
-
-  // Function to load and play a track from the queue
-  const loadAndPlayTrack = useCallback((track, playImmediately = false) => {
-    if (!track) {
-      setCurrentTrackTitle('');
-      setSourceType('local'); // Reset to local/empty
-      setLocalAudioUrl('');
-      setYoutubeVideoId('');
-      setIsPlaying(false);
-      setCurrentTime(0);
-      setDuration(0);
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current.src = '';
-      }
-      if (youtubePlayerRef.current) {
-        youtubePlayerRef.current.destroy();
-        youtubePlayerRef.current = null;
-      }
-      return;
-    }
-
-    setCurrentTrackTitle(track.title);
-    setSourceType(track.sourceType);
-    setIsPlaying(playImmediately); // Set playing state based on argument
-
-    if (track.sourceType === 'local') {
-      setLocalAudioUrl(track.url);
-      setLocalAudioFileName(track.title);
-      setYoutubeVideoId('');
-      if (audioRef.current) {
-        audioRef.current.src = track.url;
-        audioRef.current.load();
-        audioRef.current.currentTime = track.currentTime || 0;
-        if (playImmediately) audioRef.current.play().catch(e => console.error("Local audio play failed:", e));
-      }
-      if (youtubePlayerRef.current) {
-        youtubePlayerRef.current.destroy();
-        youtubePlayerRef.current = null;
-      }
-    } else if (track.sourceType === 'youtube') {
-      setYoutubeVideoId(track.videoId);
-      setLocalAudioUrl('');
-      setLocalAudioFileName('');
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current.src = '';
-      }
-      // Initialize or load video in YouTube player
-      if (!youtubePlayerRef.current) {
-        const checkYTReady = setInterval(() => {
-          if (window.YT && window.YT.Player && youtubePlayerContainerRef.current) {
-            clearInterval(checkYTReady);
-            youtubePlayerRef.current = new window.YT.Player(youtubePlayerContainerRef.current, {
-              videoId: track.videoId,
-              playerVars: {
-                autoplay: playImmediately ? 1 : 0,
-                controls: 0,
-                isHost: isHost ? 1 : 0, // Pass isHost to playerVars if needed for internal logic
-                disablekb: 1,
-                fs: 0,
-                modestbranding: 1,
-                rel: 0,
-                showinfo: 0,
-                iv_load_policy: 3,
-              },
-              events: {
-                onReady: (event) => {
-                  console.log('YouTube Player Ready:', event.target);
-                  setDuration(event.target.getDuration());
-                  event.target.setVolume(volume); // Apply current volume
-                  event.target.seekTo(track.currentTime || 0, true);
-                  if (playImmediately) event.target.playVideo().catch(e => console.error("YouTube play failed:", e));
-                },
-                onStateChange: (event) => {
-                  // Only host controls state changes for sync
-                  if (isHost) {
-                    if (event.data === window.YT.PlayerState.PLAYING && !isPlaying) {
-                      handlePlay();
-                    } else if (event.data === window.YT.PlayerState.PAUSED && isPlaying) {
-                      handlePause();
-                    } else if (event.data === window.YT.PlayerState.ENDED) {
-                      handleTrackEnded();
-                    }
-                  }
-                },
-                onError: (error) => {
-                  console.error('YouTube Player Error:', error);
-                  setStatusMessage(`YouTube Player Error: ${error.data}. Please check video ID.`);
-                }
-              },
-            });
-          }
-        }, 100);
-      } else {
-        youtubePlayerRef.current.loadVideoById(track.videoId, track.currentTime || 0);
-        youtubePlayerRef.current.setVolume(volume);
-        if (playImmediately) youtubePlayerRef.current.playVideo().catch(e => console.error("YouTube play failed:", e));
-      }
-    }
-  }, [isHost, isPlaying, volume, handlePlay, handlePause, handleTrackEnded]);
-
-
-  // Host: Handle audio file selection (Local)
-  const handleLocalFileChange = async (event) => {
-    const file = event.target.files[0];
-    if (file) {
-      if (file.size > 1024 * 1024 * 5) {
-        setStatusMessage('Warning: Large audio files (over 5MB) may not sync reliably due to data URL size limits in Firestore (1MB document limit).');
-      }
-      const reader = new FileReader();
-      reader.onload = async (e) => {
-        const dataUrl = e.target.result;
-        const newTrack = {
-          sourceType: 'local',
-          url: dataUrl,
-          title: file.name,
-          currentTime: 0,
-        };
-        const newQueue = [...queue, newTrack];
-        const newIndex = newQueue.length - 1; // Add to end
-
-        await updateSessionState({
-          queue: newQueue,
-          currentQueueIndex: newIndex,
-          isPlaying: autoplay, // Play if autoplay is true
-          currentTime: 0,
-        });
-        setStatusMessage(`Added local audio: ${file.name} to queue.`);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  // Host: Handle YouTube URL/ID input
-  const handleYoutubeInputChange = async (e) => {
-    const input = e.target.value;
-    let videoId = '';
-    const regExp = /(?:https?:\/\/)?(?:www\.)?(?:m\.)?(?:youtube\.com|youtu\.be)\/(?:watch\?v=|embed\/|v\/|)([\w-]{11})(?:\S+)?/;
-    const match = input.match(regExp);
-    if (match && match[1]) {
-      videoId = match[1];
-    } else if (input.length === 11) {
-      videoId = input;
-    }
-
-    if (videoId) {
-      const newTrack = {
-        sourceType: 'youtube',
-        videoId: videoId,
-        title: `YouTube Video: ${videoId}`,
-        currentTime: 0,
-      };
-      const newQueue = [...queue, newTrack];
-      const newIndex = newQueue.length - 1; // Add to end
-
-      await updateSessionState({
-        queue: newQueue,
-        currentQueueIndex: newIndex,
-        isPlaying: autoplay,
-        currentTime: 0,
-      });
-      setStatusMessage(`Added YouTube video: ${videoId} to queue.`);
-    } else {
-      setStatusMessage('Invalid YouTube URL or ID.');
-    }
-  };
-
-
-  // Client: Join an existing session
-  const joinSession = async () => {
-    if (!db) {
-      setStatusMessage('Firebase database not initialized. Please wait or check console for errors.');
-      console.log('joinSession called but db is null. isAuthReady:', isAuthReady, 'userId:', userId);
-      return;
-    }
-    if (!userId) {
-      setStatusMessage('User not authenticated. Please wait for authentication to complete.');
-      console.log('joinSession called but userId is null. isAuthReady:', isAuthReady);
-      return;
-    }
-    if (!isAuthReady) {
-      setStatusMessage('Authentication is still in progress. Please wait.');
-      console.log('joinSession called but isAuthReady is false.');
-      return;
-    }
-    if (!joinInputCode) {
-      setStatusMessage('Please enter a session code.');
-      return;
-    }
-
-    setStatusMessage('Joining session...');
-    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-    const sessionDocRef = doc(db, `artifacts/${appId}/public/data/audioSessions`, joinInputCode);
-
-    console.log('Attempting to join session...');
-    console.log('DB instance:', db);
-    console.log('User ID:', userId);
-    console.log('App ID for Firestore path:', appId);
-    console.log('Session Doc Ref path:', sessionDocRef.path);
-
-    try {
-      const docSnap = await getDoc(sessionDocRef);
-      if (docSnap.exists()) {
-        setCurrentSessionId(joinInputCode);
-        setIsHost(false);
-        setStatusMessage(`Joined session: ${joinInputCode}`);
-        listenToSession(joinInputCode);
-      } else {
-        setStatusMessage('Session not found. Please check the code.');
-      }
-    } catch (error) {
-      console.error('Error joining session:', error);
-      setStatusMessage(`Error joining session: ${error.message}`);
-    }
-  };
-
-  // Listen to Firestore session updates (for both host and clients)
-  const listenToSession = useCallback((sessionIdToListen) => {
-    if (!db) return;
-
-    // Unsubscribe from any previous listener
-    if (unsubscribeRef.current) {
-      unsubscribeRef.current();
-      unsubscribeRef.current = null;
-    }
-
-    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-    const sessionDocRef = doc(db, `artifacts/${appId}/public/data/audioSessions`, sessionIdToListen);
-
-    unsubscribeRef.current = onSnapshot(sessionDocRef, (docSnap) => {
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-        setQueue(data.queue || []);
-        setCurrentQueueIndex(data.currentQueueIndex || 0);
-        setVolume(data.volume !== undefined ? data.volume : 100);
-        setAutoplay(data.autoplay !== undefined ? data.autoplay : false);
-
-        const currentTrack = data.queue ? data.queue[data.currentQueueIndex] : null;
-        setCurrentTrackTitle(currentTrack ? currentTrack.title : '');
-
-        // Apply volume to players
-        if (audioRef.current) {
-          audioRef.current.volume = (data.volume !== undefined ? data.volume : 100) / 100;
+        input[type="range"]::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #a78bfa; /* purple-400 */
+            cursor: pointer;
+            box-shadow: 0 0 0 4px rgba(167, 139, 250, 0.5);
+            transition: background .15s ease-in-out, box-shadow .15s ease-in-out;
         }
-        if (youtubePlayerRef.current && typeof youtubePlayerRef.current.setVolume === 'function') {
-          youtubePlayerRef.current.setVolume(data.volume !== undefined ? data.volume : 100);
+        input[type="range"]::-webkit-slider-thumb:hover {
+            background: #8b5cf6; /* purple-500 */
         }
-
-        // Handle player state based on sourceType
-        if (currentTrack && currentTrack.sourceType === 'local') {
-          if (youtubePlayerRef.current) {
-            youtubePlayerRef.current.destroy();
-            youtubePlayerRef.current = null;
-          }
-          if (currentTrack.url !== localAudioUrl) {
-            setLocalAudioUrl(currentTrack.url);
-            setLocalAudioFileName(currentTrack.title);
-            if (audioRef.current) {
-              audioRef.current.src = currentTrack.url;
-              audioRef.current.load();
-            }
-          }
-          if (audioRef.current) {
-            if (data.isPlaying && !isPlaying) {
-              audioRef.current.play().catch(e => console.error("Local audio play failed:", e));
-            } else if (!data.isPlaying && isPlaying) {
-              audioRef.current.pause();
-            }
-            setIsPlaying(data.isPlaying);
-
-            const expectedTime = data.currentTime + (Date.now() - data.timestamp) / 1000;
-            const drift = Math.abs(audioRef.current.currentTime - expectedTime);
-            if (drift > 0.5) {
-              audioRef.current.currentTime = expectedTime;
-              setStatusMessage(`Syncing local audio: Jumped by ${drift.toFixed(2)}s`);
-            }
-            setCurrentTime(audioRef.current.currentTime);
-          }
-        } else if (currentTrack && currentTrack.sourceType === 'youtube') {
-          if (audioRef.current) {
-            audioRef.current.pause();
-            audioRef.current.src = '';
-          }
-          setLocalAudioUrl('');
-          setLocalAudioFileName('');
-
-          if (currentTrack.videoId) {
-            if (!youtubePlayerRef.current) {
-              const checkYTReady = setInterval(() => {
-                if (window.YT && window.YT.Player && youtubePlayerContainerRef.current) {
-                  clearInterval(checkYTReady);
-                  youtubePlayerRef.current = new window.YT.Player(youtubePlayerContainerRef.current, {
-                    videoId: currentTrack.videoId,
-                    playerVars: {
-                      autoplay: data.isPlaying ? 1 : 0,
-                      controls: 0,
-                      disablekb: 1,
-                      fs: 0,
-                      modestbranding: 1,
-                      rel: 0,
-                      showinfo: 0,
-                      iv_load_policy: 3,
-                    },
-                    events: {
-                      onReady: (event) => {
-                        console.log('YouTube Player Ready (client):', event.target);
-                        setDuration(event.target.getDuration());
-                        event.target.setVolume(data.volume);
-                        event.target.seekTo(data.currentTime, true);
-                        if (data.isPlaying) event.target.playVideo().catch(e => console.error("YouTube play failed (client):", e));
-                      },
-                      onStateChange: (event) => {
-                        if (event.data === window.YT.PlayerState.ENDED) {
-                          // Clients don't trigger next track, host does.
-                          // Just pause and reset for clients.
-                          setIsPlaying(false);
-                          setCurrentTime(0);
-                        }
-                      },
-                      onError: (error) => {
-                        console.error('YouTube Player Error (client):', error);
-                        setStatusMessage(`YouTube Player Error: ${error.data}.`);
-                      }
-                    },
-                  });
-                }
-              }, 100);
-            } else if (youtubePlayerRef.current.getVideoUrl().indexOf(currentTrack.videoId) === -1) {
-              youtubePlayerRef.current.loadVideoById(currentTrack.videoId, data.currentTime);
-              youtubePlayerRef.current.setVolume(data.volume);
-              if (data.isPlaying) youtubePlayerRef.current.playVideo().catch(e => console.error("YouTube play failed (client):", e));
-            }
-
-            if (youtubePlayerRef.current && typeof youtubePlayerRef.current.getPlayerState === 'function') {
-              const ytPlayerState = youtubePlayerRef.current.getPlayerState();
-              if (data.isPlaying && ytPlayerState !== window.YT.PlayerState.PLAYING) {
-                youtubePlayerRef.current.playVideo();
-              } else if (!data.isPlaying && ytPlayerState === window.YT.PlayerState.PLAYING) {
-                youtubePlayerRef.current.pauseVideo();
-              }
-              setIsPlaying(data.isPlaying);
-
-              const expectedTime = data.currentTime + (Date.now() - data.timestamp) / 1000;
-              const ytCurrentTime = youtubePlayerRef.current.getCurrentTime();
-              const drift = Math.abs(ytCurrentTime - expectedTime);
-
-              if (drift > 0.5) {
-                youtubePlayerRef.current.seekTo(expectedTime, true);
-                setStatusMessage(`Syncing YouTube: Jumped by ${drift.toFixed(2)}s`);
-              }
-              setCurrentTime(ytCurrentTime);
-              setDuration(ytCurrentTime); // Use ytCurrentTime for duration if actual duration isn't available yet
-            }
-          }
-        } else {
-          // No track selected or invalid track type
-          loadAndPlayTrack(null); // Clear players
+        input[type="range"]::-moz-range-thumb:hover {
+            background: #8b5cf6; /* purple-500 */
         }
-      } else {
-        setStatusMessage('Session ended or deleted by host.');
-        // Clean up state if session is deleted
-        setCurrentSessionId('');
-        setIsHost(false);
-        setSourceType('local');
-        setLocalAudioUrl('');
-        setLocalAudioFile(null);
-        setLocalAudioFileName('');
-        setYoutubeVideoId('');
-        setIsPlaying(false);
-        setCurrentTime(0);
-        setDuration(0);
-        setQueue([]);
-        setCurrentQueueIndex(0);
-        setCurrentTrackTitle('');
-        setVolume(100);
-        setAutoplay(false);
-        if (audioRef.current) {
-          audioRef.current.pause();
-          audioRef.current.src = '';
+        /* Custom styles for range input track */
+        input[type="range"]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 8px;
+            background: #4b5563; /* gray-600 */
+            border-radius: 4px;
         }
-        if (youtubePlayerRef.current) {
-          youtubePlayerRef.current.destroy();
-          youtubePlayerRef.current = null;
+        input[type="range"]::-moz-range-track {
+            width: 100%;
+            height: 8px;
+            background: #4b5563; /* gray-600 */
+            border-radius: 4px;
         }
-      }
-    }, (error) => {
-      console.error('Error listening to session:', error);
-      setStatusMessage(`Error syncing: ${error.message}`);
-    });
-  }, [db, localAudioUrl, isPlaying, volume, loadAndPlayTrack]); // Depend on relevant states/functions
+    </style>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-purple-800 to-indigo-900 text-white flex flex-col items-center justify-center p-4">
 
-  // Effect to load the current track when currentQueueIndex or queue changes
-  useEffect(() => {
-    if (queue.length > 0 && currentQueueIndex >= 0 && currentQueueIndex < queue.length) {
-      const trackToLoad = queue[currentQueueIndex];
-      loadAndPlayTrack(trackToLoad, isPlaying); // Pass isPlaying to maintain state on track change
-    } else if (queue.length === 0 && currentTrackTitle) {
-      // If queue becomes empty and a track was playing, clear it
-      loadAndPlayTrack(null);
-    }
-  }, [queue, currentQueueIndex, loadAndPlayTrack, isPlaying, currentTrackTitle]); // Added isPlaying and currentTrackTitle as dependencies
-
-
-  // Cleanup on component unmount
-  useEffect(() => {
-    return () => {
-      if (unsubscribeRef.current) {
-        unsubscribeRef.current();
-      }
-      // If host, attempt to delete session on unmount
-      if (isHost && db && currentSessionId) {
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const sessionDocRef = doc(db, `artifacts/${appId}/public/data/audioSessions`, currentSessionId);
-        // Direct delete is better, with a catch for errors.
-        deleteDoc(sessionDocRef).then(() => {
-          console.log('Host session deleted on unmount.');
-        }).catch(e => console.error('Error deleting host session:', e));
-      }
-      // Destroy YouTube player on unmount
-      if (youtubePlayerRef.current) {
-        youtubePlayerRef.current.destroy();
-        youtubePlayerRef.current = null;
-      }
-    };
-  }, [db, currentSessionId, isHost]);
-
-  // Format time for display
-  const formatTime = (seconds) => {
-    if (isNaN(seconds) || seconds < 0) return "0:00";
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = Math.floor(seconds % 60);
-    return `${minutes}:${remainingSeconds < 10 ? '0' : ''}${remainingSeconds}`;
-  };
-
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-800 to-indigo-900 text-white font-inter flex flex-col items-center justify-center p-4">
-      <div className="bg-gray-800 bg-opacity-70 backdrop-blur-md rounded-3xl shadow-2xl p-8 w-full max-w-md space-y-6 border border-purple-700">
-        <h1 className="text-4xl font-extrabold text-center text-purple-300 mb-6 tracking-tight">
-          <span className="block">AuraSync</span>
+    <div class="bg-gray-800 bg-opacity-70 backdrop-blur-md rounded-3xl shadow-2xl p-8 w-full max-w-md space-y-6 border border-purple-700">
+        <h1 class="text-4xl font-extrabold text-center text-purple-300 mb-6 tracking-tight">
+            <span class="block">AuraSync</span>
         </h1>
 
-        {userId && (
-          <p className="text-sm text-center text-gray-400 mb-4 px-2 py-1 bg-gray-700 bg-opacity-50 rounded-lg inline-block">
-            User ID: <span className="font-mono text-purple-200 break-all">{userId}</span>
-          </p>
-        )}
+        <p id="user-id-display" class="text-sm text-center text-gray-400 mb-4 px-2 py-1 bg-gray-700 bg-opacity-50 rounded-lg inline-block"></p>
 
-        {statusMessage && (
-          <div className="bg-blue-900 bg-opacity-50 text-blue-200 p-3 rounded-xl text-sm text-center shadow-md border border-blue-700">
-            {statusMessage}
-          </div>
-        )}
+        <div id="status-message" class="bg-blue-900 bg-opacity-50 text-blue-200 p-3 rounded-xl text-sm text-center shadow-md border border-blue-700 hidden"></div>
 
-        {!currentSessionId ? (
-          <div className="space-y-4">
-            <button
-              onClick={createSession}
-              className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-4 rounded-xl shadow-lg transform transition duration-300 ease-in-out hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-opacity-75"
-              disabled={!isAuthReady || !userId || isCreatingSession}
-            >
-              {isCreatingSession ? 'Creating Session...' : 'Create New Session (Host)'}
+        <div id="initial-screen" class="space-y-4">
+            <button id="create-session-btn" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-4 rounded-xl shadow-lg transform transition duration-300 ease-in-out hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-opacity-75" disabled>
+                Create New Session (Host)
             </button>
 
-            <div className="flex items-center space-x-2">
-              <input
-                type="text"
-                placeholder="Enter Session Code"
-                value={joinInputCode}
-                onChange={(e) => setJoinInputCode(e.target.value)}
-                className="flex-grow p-3 rounded-xl bg-gray-700 border border-gray-600 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-              />
-              <button
-                onClick={joinSession}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-xl shadow-lg transform transition duration-300 ease-in-out hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-opacity-75"
-                disabled={!isAuthReady || !userId}
-              >
-                Join Session
-              </button>
+            <div class="flex items-center space-x-2">
+                <input type="text" id="join-input-code" placeholder="Enter Session Code" class="flex-grow p-3 rounded-xl bg-gray-700 border border-gray-600 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" />
+                <button id="join-session-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-xl shadow-lg transform transition duration-300 ease-in-out hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-opacity-75" disabled>
+                    Join Session
+                </button>
             </div>
-          </div>
-        ) : (
-          <div className="space-y-6">
-            <div className="text-center">
-              <p className="text-xl font-semibold text-purple-200 tracking-wide">
-                {isHost ? 'Host Session' : 'Joined Session'}
-              </p>
-              <p className="text-3xl font-extrabold text-purple-100 mt-2 tracking-wide">
-                {currentSessionId}
-              </p>
+        </div>
+
+        <div id="session-active-screen" class="space-y-6 hidden">
+            <div class="text-center">
+                <p id="session-role" class="text-xl font-semibold text-purple-200 tracking-wide"></p>
+                <p id="current-session-code" class="text-3xl font-extrabold text-purple-100 mt-2 tracking-wide"></p>
             </div>
 
-            {isHost && (
-              <div className="space-y-4">
-                <label className="block text-center text-gray-300 text-lg font-semibold mb-2">
-                  Add Audio Source to Queue:
+            <div id="host-controls" class="space-y-4 hidden">
+                <label class="block text-center text-gray-300 text-lg font-semibold mb-2">
+                    Add Audio Source to Queue:
                 </label>
-                <div className="flex justify-center space-x-4 mb-4">
-                  <button
-                    className={`px-4 py-2 rounded-lg font-semibold transition-colors shadow-md hover:shadow-lg ${sourceType === 'local' ? 'bg-purple-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}
-                    onClick={() => setSourceType('local')}
-                  >
-                    Local File
-                  </button>
-                  <button
-                    className={`px-4 py-2 rounded-lg font-semibold transition-colors shadow-md hover:shadow-lg ${sourceType === 'youtube' ? 'bg-purple-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}
-                    onClick={() => setSourceType('youtube')}
-                  >
-                    YouTube
-                  </button>
+                <div class="flex justify-center space-x-4 mb-4">
+                    <button id="select-local-btn" class="px-4 py-2 rounded-lg font-semibold transition-colors shadow-md hover:shadow-lg bg-purple-600 text-white">
+                        Local File
+                    </button>
+                    <button id="select-youtube-btn" class="px-4 py-2 rounded-lg font-semibold transition-colors shadow-md hover:shadow-lg bg-gray-700 text-gray-300 hover:bg-gray-600">
+                        YouTube
+                    </button>
                 </div>
 
-                {sourceType === 'local' && (
-                  <div className="space-y-4">
-                    <label className="block text-center text-gray-300 text-lg font-semibold">
-                      Upload Audio File:
+                <div id="local-upload-section" class="space-y-4">
+                    <label class="block text-center text-gray-300 text-lg font-semibold">
+                        Upload Audio File:
                     </label>
-                    <input
-                      type="file"
-                      accept="audio/*"
-                      onChange={handleLocalFileChange}
-                      className="block w-full text-sm text-gray-300 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-purple-500 file:text-white hover:file:bg-purple-600 cursor-pointer transition-colors"
-                    />
-                  </div>
-                )}
+                    <input type="file" id="local-file-input" accept="audio/*" class="block w-full text-sm text-gray-300 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-purple-500 file:text-white hover:file:bg-purple-600 cursor-pointer transition-colors" />
+                </div>
 
-                {sourceType === 'youtube' && (
-                  <div className="space-y-4">
-                    <label className="block text-center text-gray-300 text-lg font-semibold">
-                      YouTube Video ID or URL:
+                <div id="youtube-input-section" class="space-y-4 hidden">
+                    <label class="block text-center text-gray-300 text-lg font-semibold">
+                        YouTube Video ID or URL:
                     </label>
-                    <input
-                      type="text"
-                      placeholder="e.g., dQw4w9WgXcQ or youtube.com/watch?v=..."
-                      value={youtubeVideoId} // This is just for input, not current playing
-                      onChange={(e) => setYoutubeVideoId(e.target.value)}
-                      className="w-full p-3 rounded-xl bg-gray-700 border border-gray-600 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                    />
-                    <button
-                      onClick={handleYoutubeInputChange} // Use the input value to add to queue
-                      className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-xl shadow-lg transform transition duration-300 ease-in-out hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-opacity-75"
-                    >
-                      Add YouTube to Queue
+                    <input type="text" id="youtube-url-input" placeholder="e.g., dQw4w9WgXcQ or youtube.com/watch?v=..." class="w-full p-3 rounded-xl bg-gray-700 border border-gray-600 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" />
+                    <button id="add-youtube-to-queue-btn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-xl shadow-lg transform transition duration-300 ease-in-out hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-opacity-75">
+                        Add YouTube to Queue
                     </button>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Current Playing Track Info */}
-            {currentTrackTitle && (
-              <p className="text-center text-lg text-green-300">
-                Now playing: <span className="font-semibold">{currentTrackTitle}</span>
-              </p>
-            )}
-
-            {/* Audio Player Container */}
-            <div className="relative w-full aspect-video bg-black rounded-lg overflow-hidden shadow-xl">
-              {sourceType === 'youtube' && (
-                <div id="youtube-player" ref={youtubePlayerContainerRef} className="absolute top-0 left-0 w-full h-full"></div>
-              )}
-              {sourceType === 'local' && (
-                <audio
-                  ref={audioRef}
-                  onPlay={handlePlay}
-                  onPause={handlePause}
-                  onTimeUpdate={handleTimeUpdate}
-                  onLoadedMetadata={handleLoadedMetadata}
-                  onEnded={handleTrackEnded} // Auto play next track
-                  className="hidden" // Hide the default audio controls
-                ></audio>
-              )}
+                </div>
             </div>
 
-            {/* Playback Controls and Progress Bar */}
-            {(localAudioUrl || youtubeVideoId) && (
-              <div className="space-y-4">
-                <div className="flex items-center justify-center space-x-4">
-                  {isHost && (
-                    <button
-                      onClick={playPrevious}
-                      className="bg-gray-600 hover:bg-gray-700 text-white p-3 rounded-full shadow-md transform transition duration-300 ease-in-out hover:scale-110 active:scale-95 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-opacity-75"
-                      disabled={currentQueueIndex === 0}
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm-3.5-7.5a.5.5 0 011 0V11h3.5a.5.5 0 010 1H7.5v.5a.5.5 0 01-1 0v-1.5z" clipRule="evenodd" />
-                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 8a1 1 0 00-1 1v2a1 1 0 102 0V9a1 1 0 00-1-1z" clipRule="evenodd" />
-                      </svg>
+            <p id="current-track-title" class="text-center text-lg text-green-300"></p>
+
+            <div class="relative w-full aspect-video bg-black rounded-lg overflow-hidden shadow-xl">
+                <div id="youtube-player-container" class="absolute top-0 left-0 w-full h-full hidden"></div>
+                <audio id="local-audio-player" class="hidden"></audio>
+            </div>
+
+            <div id="playback-controls" class="space-y-4 hidden">
+                <div class="flex items-center justify-center space-x-4">
+                    <button id="play-previous-btn" class="bg-gray-600 hover:bg-gray-700 text-white p-3 rounded-full shadow-md transform transition duration-300 ease-in-out hover:scale-110 active:scale-95 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-opacity-75">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm-3.5-7.5a.5.5 0 011 0V11h3.5a.5.5 0 010 1H7.5v.5a.5.5 0 01-1 0v-1.5z" clip-rule="evenodd" />
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 8a1 1 0 00-1 1v2a1 1 0 102 0V9a1 1 0 00-1-1z" clip-rule="evenodd" />
+                        </svg>
                     </button>
-                  )}
-                  <button
-                    onClick={() => isPlaying ? (sourceType === 'local' ? audioRef.current.pause() : youtubePlayerRef.current.pauseVideo()) : (sourceType === 'local' ? audioRef.current.play() : youtubePlayerRef.current.playVideo())}
-                    className="bg-purple-500 hover:bg-purple-600 text-white p-4 rounded-full shadow-lg transform transition duration-300 ease-in-out hover:scale-110 active:scale-95 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:ring-opacity-75"
-                    disabled={!currentTrackTitle}
-                  >
-                    {isPlaying ? (
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
-                      </svg>
-                    ) : (
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
-                      </svg>
-                    )}
-                  </button>
-                  {isHost && (
-                    <button
-                      onClick={playNext}
-                      className="bg-gray-600 hover:bg-gray-700 text-white p-3 rounded-full shadow-md transform transition duration-300 ease-in-out hover:scale-110 active:scale-95 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-opacity-75"
-                      disabled={currentQueueIndex === queue.length - 1}
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM12.5 11.5a.5.5 0 01-1 0V11H8a.5.5 0 010-1h3.5V9.5a.5.5 0 011 0v1.5z" clipRule="evenodd" />
-                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM12 8a1 1 0 00-1 1v2a1 1 0 102 0V9a1 1 0 00-1-1z" clipRule="evenodd" />
-                      </svg>
+                    <button id="play-pause-btn" class="bg-purple-500 hover:bg-purple-600 text-white p-4 rounded-full shadow-lg transform transition duration-300 ease-in-out hover:scale-110 active:scale-95 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:ring-opacity-75">
+                        <svg id="play-icon" xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd" />
+                        </svg>
+                        <svg id="pause-icon" xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 hidden" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
+                        </svg>
                     </button>
-                  )}
+                    <button id="play-next-btn" class="bg-gray-600 hover:bg-gray-700 text-white p-3 rounded-full shadow-md transform transition duration-300 ease-in-out hover:scale-110 active:scale-95 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-opacity-75">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM12.5 11.5a.5.5 0 01-1 0V11H8a.5.5 0 010-1h3.5V9.5a.5.5 0 011 0v1.5z" clip-rule="evenodd" />
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM12 8a1 1 0 00-1 1v2a1 1 0 102 0V9a1 1 0 00-1-1z" clip-rule="evenodd" />
+                        </svg>
+                    </button>
                 </div>
 
-                <div className="flex items-center space-x-3">
-                  <span className="text-gray-300">{formatTime(currentTime)}</span>
-                  <input
-                    type="range"
-                    min="0"
-                    max={duration || 0}
-                    value={currentTime}
-                    onChange={handleSeek}
-                    className="w-full h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer range-lg focus:outline-none focus:ring-2 focus:ring-purple-400 accent-purple-500"
-                    disabled={!currentTrackTitle}
-                  />
-                  <span className="text-gray-300">{formatTime(duration)}</span>
+                <div class="flex items-center space-x-3">
+                    <span id="current-time-display" class="text-gray-300">0:00</span>
+                    <input type="range" id="seek-slider" min="0" value="0" class="w-full h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer range-lg focus:outline-none focus:ring-2 focus:ring-purple-400 accent-purple-500" />
+                    <span id="duration-display" class="text-gray-300">0:00</span>
                 </div>
-              </div>
-            )}
+            </div>
 
-            {isHost && (
-              <div className="space-y-4 pt-4 border-t border-gray-700">
-                <h2 className="text-xl font-semibold text-purple-200 text-center">Player Settings</h2>
-                <div className="flex items-center space-x-3">
-                  <label htmlFor="volume-slider" className="text-gray-300 w-16">Volume:</label>
-                  <input
-                    id="volume-slider"
-                    type="range"
-                    min="0"
-                    max="100"
-                    value={volume}
-                    onChange={handleVolumeChange}
-                    className="flex-grow h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer range-lg focus:outline-none focus:ring-2 focus:ring-purple-400 accent-purple-500"
-                  />
-                  <span className="text-gray-300">{volume}%</span>
+            <div id="player-settings" class="space-y-4 pt-4 border-t border-gray-700 hidden">
+                <h2 class="text-xl font-semibold text-purple-200 text-center">Player Settings</h2>
+                <div class="flex items-center space-x-3">
+                    <label for="volume-slider" class="text-gray-300 w-16">Volume:</label>
+                    <input type="range" id="volume-slider" min="0" max="100" value="100" class="flex-grow h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer range-lg focus:outline-none focus:ring-2 focus:ring-purple-400 accent-purple-500" />
+                    <span id="volume-display" class="text-gray-300">100%</span>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-300">Autoplay Queue:</span>
-                  <label htmlFor="autoplay-toggle" className="relative inline-flex items-center cursor-pointer">
-                    <input
-                      type="checkbox"
-                      id="autoplay-toggle"
-                      className="sr-only peer"
-                      checked={autoplay}
-                      onChange={handleAutoplayToggle}
-                    />
-                    <div className="w-11 h-6 bg-gray-600 rounded-full peer peer-focus:ring-4 peer-focus:ring-purple-300 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border after:border-gray-300 after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
-                  </label>
+                <div class="flex items-center justify-between">
+                    <span class="text-gray-300">Autoplay Queue:</span>
+                    <label for="autoplay-toggle" class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="autoplay-toggle" class="sr-only peer" />
+                        <div class="w-11 h-6 bg-gray-600 rounded-full peer peer-focus:ring-4 peer-focus:ring-purple-300 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border after:border-gray-300 after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
+                    </label>
                 </div>
-              </div>
-            )}
+            </div>
 
-            {/* Queue Display */}
-            {queue.length > 0 && (
-              <div className="space-y-2 pt-4 border-t border-gray-700 shadow-inner rounded-lg">
-                <h2 className="text-xl font-semibold text-purple-200 text-center">Queue ({queue.length} items)</h2>
-                <ul className="max-h-48 overflow-y-auto bg-gray-700 bg-opacity-50 rounded-lg p-3 border border-gray-600">
-                  {queue.map((track, index) => (
-                    <li
-                      key={index}
-                      className={`p-2 rounded-md transition-colors flex items-center justify-between ${index === currentQueueIndex ? 'bg-purple-700 font-bold shadow-inner' : 'hover:bg-gray-600'}`}
-                    >
-                      <span>{index + 1}. {track.title}</span>
-                      {/* Add host controls to remove from queue if desired */}
-                    </li>
-                  ))}
+            <div id="queue-display-section" class="space-y-2 pt-4 border-t border-gray-700 shadow-inner rounded-lg hidden">
+                <h2 id="queue-header" class="text-xl font-semibold text-purple-200 text-center">Queue (0 items)</h2>
+                <ul id="queue-list" class="max-h-48 overflow-y-auto bg-gray-700 bg-opacity-50 rounded-lg p-3 border border-gray-600">
+                    <!-- Queue items will be inserted here -->
                 </ul>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
+            </div>
+        </div>
     </div>
-  );
-}
 
-export default App;
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc, onSnapshot, deleteDoc } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js";
+
+        // Your web app's Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyAvdsISdxERqIrZbyecvwKsf2V7lFuPWkc",
+            authDomain: "zync-2baf2.firebaseapp.com",
+            projectId: "zync-2baf2",
+            storageBucket: "zync-2baf2.firebasestorage.app",
+            messagingSenderId: "388386446447",
+            appId: "1:388386446447:web:9659826f61a4aaec01019a"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+
+        // Global state variables (equivalent to React's useState)
+        let currentUserId = null;
+        let isFirebaseAuthReady = false;
+        let currentSessionId = '';
+        let isHost = false;
+        let currentSourceType = 'local';
+        let currentQueue = [];
+        let currentQueueIndex = 0;
+        let currentIsPlaying = false;
+        let currentVolume = 100;
+        let currentAutoplay = false;
+        let youtubePlayer = null;
+        let firestoreUnsubscribe = null; // To store the unsubscribe function for Firestore listener
+        let isSessionCreationInProgress = false; // For loading indicator
+
+        // DOM Elements
+        const userIdDisplay = document.getElementById('user-id-display');
+        const statusMessageDiv = document.getElementById('status-message');
+        const createSessionBtn = document.getElementById('create-session-btn');
+        const joinInputCode = document.getElementById('join-input-code');
+        const joinSessionBtn = document.getElementById('join-session-btn');
+        const initialScreen = document.getElementById('initial-screen');
+        const sessionActiveScreen = document.getElementById('session-active-screen');
+        const sessionRoleDisplay = document.getElementById('session-role');
+        const currentSessionCodeDisplay = document.getElementById('current-session-code');
+        const hostControlsDiv = document.getElementById('host-controls');
+        const selectLocalBtn = document.getElementById('select-local-btn');
+        const selectYoutubeBtn = document.getElementById('select-youtube-btn');
+        const localUploadSection = document.getElementById('local-upload-section');
+        const youtubeInputSection = document.getElementById('youtube-input-section');
+        const localFileInput = document.getElementById('local-file-input');
+        const youtubeUrlInput = document.getElementById('youtube-url-input');
+        const addYoutubeToQueueBtn = document.getElementById('add-youtube-to-queue-btn');
+        const currentTrackTitleDisplay = document.getElementById('current-track-title');
+        const youtubePlayerContainer = document.getElementById('youtube-player-container');
+        const localAudioPlayer = document.getElementById('local-audio-player');
+        const playbackControls = document.getElementById('playback-controls');
+        const playPreviousBtn = document.getElementById('play-previous-btn');
+        const playPauseBtn = document.getElementById('play-pause-btn');
+        const playNextBtn = document.getElementById('play-next-btn');
+        const playIcon = document.getElementById('play-icon');
+        const pauseIcon = document.getElementById('pause-icon');
+        const currentTimeDisplay = document.getElementById('current-time-display');
+        const seekSlider = document.getElementById('seek-slider');
+        const durationDisplay = document.getElementById('duration-display');
+        const playerSettingsDiv = document.getElementById('player-settings');
+        const volumeSlider = document.getElementById('volume-slider');
+        const volumeDisplay = document.getElementById('volume-display');
+        const autoplayToggle = document.getElementById('autoplay-toggle');
+        const queueDisplaySection = document.getElementById('queue-display-section');
+        const queueHeader = document.getElementById('queue-header');
+        const queueList = document.getElementById('queue-list');
+
+        // Utility Functions
+        function setStatusMessage(message) {
+            statusMessageDiv.textContent = message;
+            statusMessageDiv.classList.remove('hidden');
+        }
+
+        function formatTime(seconds) {
+            if (isNaN(seconds) || seconds < 0) return "0:00";
+            const minutes = Math.floor(seconds / 60);
+            const remainingSeconds = Math.floor(seconds % 60);
+            return `${minutes}:${remainingSeconds < 10 ? '0' : ''}${remainingSeconds}`;
+        }
+
+        function generateSessionId() {
+            return Math.random().toString(36).substring(2, 8).toUpperCase();
+        }
+
+        // Player Control Functions
+        function playCurrentTrack() {
+            if (currentSourceType === 'local' && localAudioPlayer) {
+                localAudioPlayer.play().catch(e => console.error("Local audio play failed:", e));
+            } else if (currentSourceType === 'youtube' && youtubePlayer) {
+                youtubePlayer.playVideo().catch(e => console.error("YouTube play failed:", e));
+            }
+            currentIsPlaying = true;
+            playIcon.classList.add('hidden');
+            pauseIcon.classList.remove('hidden');
+        }
+
+        function pauseCurrentTrack() {
+            if (currentSourceType === 'local' && localAudioPlayer) {
+                localAudioPlayer.pause();
+            } else if (currentSourceType === 'youtube' && youtubePlayer) {
+                youtubePlayer.pauseVideo();
+            }
+            currentIsPlaying = false;
+            playIcon.classList.remove('hidden');
+            pauseIcon.classList.add('hidden');
+        }
+
+        // Load and Play Track (Centralized logic for both host and client)
+        function loadAndPlayTrack(track, playImmediately = false) {
+            // Clear previous player state
+            if (localAudioPlayer) {
+                localAudioPlayer.pause();
+                localAudioPlayer.src = '';
+            }
+            if (youtubePlayer) {
+                youtubePlayer.destroy();
+                youtubePlayer = null;
+            }
+            youtubePlayerContainer.classList.add('hidden'); // Hide YouTube player by default
+
+            if (!track) {
+                currentTrackTitleDisplay.textContent = '';
+                seekSlider.value = 0;
+                currentTimeDisplay.textContent = '0:00';
+                durationDisplay.textContent = '0:00';
+                playbackControls.classList.add('hidden');
+                return;
+            }
+
+            currentTrackTitleDisplay.textContent = `Now playing: ${track.title}`;
+            currentSourceType = track.sourceType;
+            currentIsPlaying = playImmediately; // Set global playing state
+
+            playbackControls.classList.remove('hidden'); // Show controls when a track is loaded
+
+            if (track.sourceType === 'local') {
+                localAudioPlayer.src = track.url;
+                localAudioPlayer.load();
+                localAudioPlayer.currentTime = track.currentTime || 0;
+                localAudioPlayer.volume = currentVolume / 100; // Apply current volume
+                if (playImmediately) {
+                    localAudioPlayer.play().catch(e => console.error("Local audio play failed:", e));
+                }
+            } else if (track.sourceType === 'youtube') {
+                youtubePlayerContainer.classList.remove('hidden'); // Show YouTube player container
+                const checkYTReady = setInterval(() => {
+                    if (window.YT && window.YT.Player) {
+                        clearInterval(checkYTReady);
+                        youtubePlayer = new window.YT.Player(youtubePlayerContainer, {
+                            videoId: track.videoId,
+                            playerVars: {
+                                autoplay: playImmediately ? 1 : 0,
+                                controls: 0,
+                                disablekb: 1,
+                                fs: 0,
+                                modestbranding: 1,
+                                rel: 0,
+                                showinfo: 0,
+                                iv_load_policy: 3,
+                            },
+                            events: {
+                                'onReady': (event) => {
+                                    console.log('YouTube Player Ready:', event.target);
+                                    seekSlider.max = event.target.getDuration();
+                                    durationDisplay.textContent = formatTime(event.target.getDuration());
+                                    event.target.setVolume(currentVolume); // Apply current volume
+                                    event.target.seekTo(track.currentTime || 0, true);
+                                    if (playImmediately) {
+                                        event.target.playVideo().catch(e => console.error("YouTube play failed:", e));
+                                    }
+                                },
+                                'onStateChange': (event) => {
+                                    // YT.PlayerState: -1 (unstarted), 0 (ended), 1 (playing), 2 (paused), 3 (buffering), 5 (video cued)
+                                    if (isHost) { // Only host updates Firestore based on player state
+                                        if (event.data === window.YT.PlayerState.PLAYING && !currentIsPlaying) {
+                                            updateSessionState({ isPlaying: true });
+                                        } else if (event.data === window.YT.PlayerState.PAUSED && currentIsPlaying) {
+                                            updateSessionState({ isPlaying: false });
+                                        } else if (event.data === window.YT.PlayerState.ENDED) {
+                                            handleTrackEnded();
+                                        }
+                                    } else { // Clients just reflect state
+                                        if (event.data === window.YT.PlayerState.PLAYING) {
+                                            playIcon.classList.add('hidden');
+                                            pauseIcon.classList.remove('hidden');
+                                        } else if (event.data === window.YT.PlayerState.PAUSED || event.data === window.YT.PlayerState.ENDED) {
+                                            playIcon.classList.remove('hidden');
+                                            pauseIcon.classList.add('hidden');
+                                        }
+                                    }
+                                },
+                                'onError': (error) => {
+                                    console.error('YouTube Player Error:', error);
+                                    setStatusMessage(`YouTube Player Error: ${error.data}. Please check video ID.`);
+                                }
+                            },
+                        });
+                    }
+                }, 100);
+            } else {
+                // If player already exists, just load new video
+                youtubePlayer.loadVideoById(track.videoId, track.currentTime || 0);
+                youtubePlayer.setVolume(currentVolume);
+                if (playImmediately) {
+                    youtubePlayer.playVideo().catch(e => console.error("YouTube play failed:", e));
+                }
+            }
+        }
+
+        // Host: Update session state in Firestore
+        async function updateSessionState(updates) {
+            if (!db || !currentSessionId || !isHost) return;
+            const appId = typeof __app_id !== 'undefined' ? __app_id : firebaseConfig.projectId; // Use projectId as appId fallback
+            const sessionDocRef = doc(db, `artifacts/${appId}/public/data/audioSessions`, currentSessionId);
+
+            console.log('Attempting to update session state...');
+            console.log('Session Doc Ref path for update:', sessionDocRef.path);
+            console.log('Updates being sent:', updates);
+
+            try {
+                await setDoc(sessionDocRef, { ...updates, timestamp: Date.now() }, { merge: true });
+            } catch (error) {
+                console.error('Error updating session state:', error);
+                setStatusMessage(`Error syncing: ${error.message}`);
+            }
+        }
+
+        // Host: Handle track ending
+        async function handleTrackEnded() {
+            if (isHost) {
+                const nextIndex = currentQueueIndex + 1;
+                if (nextIndex < currentQueue.length) {
+                    await updateSessionState({
+                        currentQueueIndex: nextIndex,
+                        isPlaying: currentAutoplay, // Play next if autoplay is true
+                        currentTime: 0,
+                    });
+                } else {
+                    // End of queue
+                    await updateSessionState({
+                        isPlaying: false,
+                        currentTime: 0,
+                        currentQueueIndex: 0, // Reset to start or keep at end
+                    });
+                    setStatusMessage('Queue finished.');
+                }
+            }
+        }
+
+        // Host: Navigate queue
+        async function playNext() {
+            if (isHost && currentQueueIndex < currentQueue.length - 1) {
+                await updateSessionState({
+                    currentQueueIndex: currentQueueIndex + 1,
+                    isPlaying: true,
+                    currentTime: 0,
+                });
+            } else if (isHost && currentQueueIndex === currentQueue.length - 1) {
+                setStatusMessage('End of queue.');
+            }
+        }
+
+        async function playPrevious() {
+            if (isHost && currentQueueIndex > 0) {
+                await updateSessionState({
+                    currentQueueIndex: currentQueueIndex - 1,
+                    isPlaying: true,
+                    currentTime: 0,
+                });
+            } else if (isHost && currentQueueIndex === 0) {
+                setStatusMessage('Beginning of queue.');
+            }
+        }
+
+        // Render Queue
+        function renderQueue() {
+            queueList.innerHTML = ''; // Clear existing list
+            if (currentQueue.length === 0) {
+                queueDisplaySection.classList.add('hidden');
+                return;
+            }
+            queueDisplaySection.classList.remove('hidden');
+            queueHeader.textContent = `Queue (${currentQueue.length} items)`;
+
+            currentQueue.forEach((track, index) => {
+                const li = document.createElement('li');
+                li.className = `p-2 rounded-md transition-colors flex items-center justify-between ${index === currentQueueIndex ? 'bg-purple-700 font-bold shadow-inner' : 'hover:bg-gray-600'}`;
+                li.innerHTML = `<span>${index + 1}. ${track.title}</span>`;
+                queueList.appendChild(li);
+            });
+        }
+
+        // Event Listeners
+
+        // Firebase Auth State Listener
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                currentUserId = user.uid;
+                isFirebaseAuthReady = true;
+                userIdDisplay.textContent = `User ID: ${currentUserId}`;
+                setStatusMessage('Authenticated successfully.');
+                createSessionBtn.disabled = false;
+                joinSessionBtn.disabled = false;
+            } else {
+                currentUserId = null;
+                isFirebaseAuthReady = true;
+                userIdDisplay.textContent = 'User ID: Not authenticated';
+                setStatusMessage('Not authenticated. Anonymous sign-in failed or not available.');
+                createSessionBtn.disabled = true;
+                joinSessionBtn.disabled = true;
+            }
+        });
+
+        // Create Session
+        createSessionBtn.addEventListener('click', async () => {
+            if (!db) {
+                setStatusMessage('Firebase database not initialized. Please wait or check console for errors.');
+                console.log('createSession called but db is null. isAuthReady:', isFirebaseAuthReady, 'userId:', currentUserId);
+                return;
+            }
+            if (!currentUserId) {
+                setStatusMessage('User not authenticated. Please wait for authentication to complete.');
+                console.log('createSession called but userId is null. isAuthReady:', isFirebaseAuthReady);
+                return;
+            }
+            if (!isFirebaseAuthReady) {
+                setStatusMessage('Authentication is still in progress. Please wait.');
+                console.log('createSession called but isAuthReady is false.');
+                return;
+            }
+
+            isSessionCreationInProgress = true;
+            createSessionBtn.textContent = 'Creating Session...';
+            createSessionBtn.disabled = true;
+            setStatusMessage('Creating session...');
+
+            const newSessionId = generateSessionId();
+            const appId = typeof __app_id !== 'undefined' ? __app_id : firebaseConfig.projectId;
+            const sessionDocRef = doc(db, `artifacts/${appId}/public/data/audioSessions`, newSessionId);
+
+            console.log('Attempting to create session...');
+            console.log('DB instance:', db);
+            console.log('User ID:', currentUserId);
+            console.log('App ID for Firestore path:', appId);
+            console.log('Session Doc Ref path:', sessionDocRef.path);
+
+            try {
+                await setDoc(sessionDocRef, {
+                    hostId: currentUserId,
+                    sourceType: 'local',
+                    queue: [],
+                    currentQueueIndex: 0,
+                    isPlaying: false,
+                    currentTime: 0,
+                    timestamp: Date.now(),
+                    volume: 100,
+                    autoplay: false,
+                });
+                currentSessionId = newSessionId;
+                isHost = true;
+                currentSourceType = 'local';
+                currentQueue = [];
+                currentQueueIndex = 0;
+                currentIsPlaying = false;
+                localAudioPlayer.src = ''; // Clear any existing audio
+                if (youtubePlayer) { youtubePlayer.destroy(); youtubePlayer = null; } // Destroy YouTube player
+                youtubePlayerContainer.classList.add('hidden');
+
+                currentVolume = 100;
+                currentAutoplay = false;
+
+                initialScreen.classList.add('hidden');
+                sessionActiveScreen.classList.remove('hidden');
+                sessionRoleDisplay.textContent = 'Host Session';
+                currentSessionCodeDisplay.textContent = currentSessionId;
+                hostControlsDiv.classList.remove('hidden');
+                playerSettingsDiv.classList.remove('hidden');
+                renderQueue(); // Render empty queue initially
+
+                setStatusMessage(`Session created! Share code: ${newSessionId}`);
+                listenToSession(newSessionId);
+            } catch (error) {
+                console.error('Error creating session:', error);
+                setStatusMessage(`Error creating session: ${error.message}`);
+            } finally {
+                isSessionCreationInProgress = false;
+                createSessionBtn.textContent = 'Create New Session (Host)';
+                createSessionBtn.disabled = false; // Re-enable button
+            }
+        });
+
+        // Join Session
+        joinSessionBtn.addEventListener('click', async () => {
+            if (!db) {
+                setStatusMessage('Firebase database not initialized. Please wait or check console for errors.');
+                console.log('joinSession called but db is null. isAuthReady:', isFirebaseAuthReady, 'userId:', currentUserId);
+                return;
+            }
+            if (!currentUserId) {
+                setStatusMessage('User not authenticated. Please wait for authentication to complete.');
+                console.log('joinSession called but userId is null. isAuthReady:', isFirebaseAuthReady);
+                return;
+            }
+            if (!isFirebaseAuthReady) {
+                setStatusMessage('Authentication is still in progress. Please wait.');
+                console.log('joinSession called but isAuthReady is false.');
+                return;
+            }
+            if (!joinInputCode.value) {
+                setStatusMessage('Please enter a session code.');
+                return;
+            }
+
+            setStatusMessage('Joining session...');
+            const joinCode = joinInputCode.value.toUpperCase();
+            const appId = typeof __app_id !== 'undefined' ? __app_id : firebaseConfig.projectId;
+            const sessionDocRef = doc(db, `artifacts/${appId}/public/data/audioSessions`, joinCode);
+
+            console.log('Attempting to join session...');
+            console.log('DB instance:', db);
+            console.log('User ID:', currentUserId);
+            console.log('App ID for Firestore path:', appId);
+            console.log('Session Doc Ref path:', sessionDocRef.path);
+
+            try {
+                const docSnap = await getDoc(sessionDocRef);
+                if (docSnap.exists()) {
+                    currentSessionId = joinCode;
+                    isHost = false;
+                    initialScreen.classList.add('hidden');
+                    sessionActiveScreen.classList.remove('hidden');
+                    sessionRoleDisplay.textContent = 'Joined Session';
+                    currentSessionCodeDisplay.textContent = currentSessionId;
+                    hostControlsDiv.classList.add('hidden'); // Hide host controls for client
+                    playerSettingsDiv.classList.add('hidden'); // Hide player settings for client
+                    playbackControls.classList.remove('hidden'); // Show playback controls for client
+                    renderQueue(); // Render queue for client
+                    setStatusMessage(`Joined session: ${joinCode}`);
+                    listenToSession(joinCode);
+                } else {
+                    setStatusMessage('Session not found. Please check the code.');
+                }
+            } catch (error) {
+                console.error('Error joining session:', error);
+                setStatusMessage(`Error joining session: ${error.message}`);
+            }
+        });
+
+        // Listen to Firestore session updates (for both host and clients)
+        function listenToSession(sessionIdToListen) {
+            if (!db) return;
+
+            // Unsubscribe from any previous listener
+            if (firestoreUnsubscribe) {
+                firestoreUnsubscribe();
+                firestoreUnsubscribe = null;
+            }
+
+            const appId = typeof __app_id !== 'undefined' ? __app_id : firebaseConfig.projectId;
+            const sessionDocRef = doc(db, `artifacts/${appId}/public/data/audioSessions`, sessionIdToListen);
+
+            firestoreUnsubscribe = onSnapshot(sessionDocRef, (docSnap) => {
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    currentQueue = data.queue || [];
+                    currentQueueIndex = data.currentQueueIndex || 0;
+                    currentVolume = data.volume !== undefined ? data.volume : 100;
+                    currentAutoplay = data.autoplay !== undefined ? data.autoplay : false;
+
+                    volumeSlider.value = currentVolume;
+                    volumeDisplay.textContent = `${currentVolume}%`;
+                    autoplayToggle.checked = currentAutoplay;
+
+                    const currentTrack = currentQueue[currentQueueIndex];
+                    currentTrackTitleDisplay.textContent = currentTrack ? `Now playing: ${currentTrack.title}` : '';
+
+                    renderQueue(); // Update queue display
+
+                    // Apply volume to players
+                    if (localAudioPlayer) {
+                        localAudioPlayer.volume = currentVolume / 100;
+                    }
+                    if (youtubePlayer && typeof youtubePlayer.setVolume === 'function') {
+                        youtubePlayer.setVolume(currentVolume);
+                    }
+
+                    // Handle player state based on sourceType
+                    if (currentTrack && currentTrack.sourceType === 'local') {
+                        if (youtubePlayer) {
+                            youtubePlayer.destroy();
+                            youtubePlayer = null;
+                            youtubePlayerContainer.classList.add('hidden');
+                        }
+                        if (localAudioPlayer.src !== currentTrack.url) {
+                            localAudioPlayer.src = currentTrack.url;
+                            localAudioPlayer.load();
+                            setStatusMessage(`Loading local audio: ${currentTrack.title}`);
+                        }
+                        if (localAudioPlayer) {
+                            if (data.isPlaying && !localAudioPlayer.paused) {
+                                // Already playing, no action needed
+                            } else if (data.isPlaying && localAudioPlayer.paused) {
+                                localAudioPlayer.play().catch(e => console.error("Local audio play failed:", e));
+                            } else if (!data.isPlaying && !localAudioPlayer.paused) {
+                                localAudioPlayer.pause();
+                            }
+                            currentIsPlaying = data.isPlaying;
+                            playIcon.classList.toggle('hidden', currentIsPlaying);
+                            pauseIcon.classList.toggle('hidden', !currentIsPlaying);
+
+                            const expectedTime = data.currentTime + (Date.now() - data.timestamp) / 1000;
+                            const drift = Math.abs(localAudioPlayer.currentTime - expectedTime);
+                            if (drift > 0.5) {
+                                localAudioPlayer.currentTime = expectedTime;
+                                setStatusMessage(`Syncing local audio: Jumped by ${drift.toFixed(2)}s`);
+                            }
+                            seekSlider.value = localAudioPlayer.currentTime;
+                            currentTimeDisplay.textContent = formatTime(localAudioPlayer.currentTime);
+                            seekSlider.max = localAudioPlayer.duration || 0;
+                            durationDisplay.textContent = formatTime(localAudioPlayer.duration || 0);
+                        }
+                    } else if (currentTrack && currentTrack.sourceType === 'youtube') {
+                        if (localAudioPlayer) {
+                            localAudioPlayer.pause();
+                            localAudioPlayer.src = '';
+                        }
+                        youtubePlayerContainer.classList.remove('hidden');
+
+                        if (youtubePlayer && youtubePlayer.getVideoData().video_id !== currentTrack.videoId) {
+                            youtubePlayer.loadVideoById(currentTrack.videoId, data.currentTime);
+                        } else if (!youtubePlayer) {
+                            // Initialize YouTube player if it doesn't exist
+                            const checkYTReady = setInterval(() => {
+                                if (window.YT && window.YT.Player) {
+                                    clearInterval(checkYTReady);
+                                    youtubePlayer = new window.YT.Player(youtubePlayerContainer, {
+                                        videoId: currentTrack.videoId,
+                                        playerVars: {
+                                            autoplay: data.isPlaying ? 1 : 0,
+                                            controls: 0,
+                                            disablekb: 1,
+                                            fs: 0,
+                                            modestbranding: 1,
+                                            rel: 0,
+                                            showinfo: 0,
+                                            iv_load_policy: 3,
+                                        },
+                                        events: {
+                                            'onReady': (event) => {
+                                                console.log('YouTube Player Ready (client):', event.target);
+                                                seekSlider.max = event.target.getDuration();
+                                                durationDisplay.textContent = formatTime(event.target.getDuration());
+                                                event.target.setVolume(currentVolume);
+                                                event.target.seekTo(data.currentTime, true);
+                                                if (data.isPlaying) event.target.playVideo().catch(e => console.error("YouTube play failed (client):", e));
+                                            },
+                                            'onStateChange': (event) => {
+                                                if (event.data === window.YT.PlayerState.PLAYING) {
+                                                    playIcon.classList.add('hidden');
+                                                    pauseIcon.classList.remove('hidden');
+                                                } else if (event.data === window.YT.PlayerState.PAUSED || event.data === window.YT.PlayerState.ENDED) {
+                                                    playIcon.classList.remove('hidden');
+                                                    pauseIcon.classList.add('hidden');
+                                                }
+                                                if (event.data === window.YT.PlayerState.ENDED) {
+                                                    // Clients don't trigger next track, host does.
+                                                    currentIsPlaying = false;
+                                                    seekSlider.value = 0;
+                                                    currentTimeDisplay.textContent = '0:00';
+                                                }
+                                            },
+                                            'onError': (error) => {
+                                                console.error('YouTube Player Error (client):', error);
+                                                setStatusMessage(`YouTube Player Error: ${error.data}.`);
+                                            }
+                                        },
+                                    });
+                                }
+                            }, 100);
+                        }
+
+                        if (youtubePlayer && typeof youtubePlayer.getPlayerState === 'function') {
+                            const ytPlayerState = youtubePlayer.getPlayerState();
+                            if (data.isPlaying && ytPlayerState !== window.YT.PlayerState.PLAYING) {
+                                youtubePlayer.playVideo();
+                            } else if (!data.isPlaying && ytPlayerState === window.YT.PlayerState.PLAYING) {
+                                youtubePlayer.pauseVideo();
+                            }
+                            currentIsPlaying = data.isPlaying;
+                            playIcon.classList.toggle('hidden', currentIsPlaying);
+                            pauseIcon.classList.toggle('hidden', !currentIsPlaying);
+
+                            const expectedTime = data.currentTime + (Date.now() - data.timestamp) / 1000;
+                            const ytCurrentTime = youtubePlayer.getCurrentTime();
+                            const drift = Math.abs(ytCurrentTime - expectedTime);
+
+                            if (drift > 0.5) {
+                                youtubePlayer.seekTo(expectedTime, true);
+                                setStatusMessage(`Syncing YouTube: Jumped by ${drift.toFixed(2)}s`);
+                            }
+                            seekSlider.value = ytCurrentTime;
+                            currentTimeDisplay.textContent = formatTime(ytCurrentTime);
+                            seekSlider.max = youtubePlayer.getDuration() || 0;
+                            durationDisplay.textContent = formatTime(youtubePlayer.getDuration() || 0);
+                        }
+                    } else {
+                        // No track selected or invalid track type
+                        loadAndPlayTrack(null); // Clear players
+                    }
+                } else {
+                    setStatusMessage('Session ended or deleted by host.');
+                    // Clean up state if session is deleted
+                    currentSessionId = '';
+                    isHost = false;
+                    currentSourceType = 'local';
+                    localAudioPlayer.src = '';
+                    localFileInput.value = '';
+                    youtubeUrlInput.value = '';
+                    currentIsPlaying = false;
+                    seekSlider.value = 0;
+                    currentTimeDisplay.textContent = '0:00';
+                    durationDisplay.textContent = '0:00';
+                    currentQueue = [];
+                    currentQueueIndex = 0;
+                    currentTrackTitleDisplay.textContent = '';
+                    currentVolume = 100;
+                    currentAutoplay = false;
+
+                    initialScreen.classList.remove('hidden');
+                    sessionActiveScreen.classList.add('hidden');
+                    hostControlsDiv.classList.add('hidden');
+                    playerSettingsDiv.classList.add('hidden');
+                    playbackControls.classList.add('hidden');
+                    queueDisplaySection.classList.add('hidden');
+
+                    if (localAudioPlayer) { localAudioPlayer.pause(); localAudioPlayer.src = ''; }
+                    if (youtubePlayer) { youtubePlayer.destroy(); youtubePlayer = null; }
+                    youtubePlayerContainer.classList.add('hidden');
+
+                    if (firestoreUnsubscribe) {
+                        firestoreUnsubscribe();
+                        firestoreUnsubscribe = null;
+                    }
+                }
+            }, (error) => {
+                console.error('Error listening to session:', error);
+                setStatusMessage(`Error syncing: ${error.message}`);
+            });
+        }
+
+        // Host Controls
+        selectLocalBtn.addEventListener('click', () => {
+            currentSourceType = 'local';
+            selectLocalBtn.classList.add('bg-purple-600', 'text-white');
+            selectLocalBtn.classList.remove('bg-gray-700', 'text-gray-300', 'hover:bg-gray-600');
+            selectYoutubeBtn.classList.remove('bg-purple-600', 'text-white');
+            selectYoutubeBtn.classList.add('bg-gray-700', 'text-gray-300', 'hover:bg-gray-600');
+            localUploadSection.classList.remove('hidden');
+            youtubeInputSection.classList.add('hidden');
+        });
+
+        selectYoutubeBtn.addEventListener('click', () => {
+            currentSourceType = 'youtube';
+            selectYoutubeBtn.classList.add('bg-purple-600', 'text-white');
+            selectYoutubeBtn.classList.remove('bg-gray-700', 'text-gray-300', 'hover:bg-gray-600');
+            selectLocalBtn.classList.remove('bg-purple-600', 'text-white');
+            selectLocalBtn.classList.add('bg-gray-700', 'text-gray-300', 'hover:bg-gray-600');
+            localUploadSection.classList.add('hidden');
+            youtubeInputSection.classList.remove('hidden');
+        });
+
+        localFileInput.addEventListener('change', async (event) => {
+            const file = event.target.files[0];
+            if (file) {
+                if (file.size > 1024 * 1024 * 5) {
+                    setStatusMessage('Warning: Large audio files (over 5MB) may not sync reliably due to data URL size limits in Firestore (1MB document limit).');
+                }
+                const reader = new FileReader();
+                reader.onload = async (e) => {
+                    const dataUrl = e.target.result;
+                    const newTrack = {
+                        sourceType: 'local',
+                        url: dataUrl,
+                        title: file.name,
+                        currentTime: 0,
+                    };
+                    currentQueue = [...currentQueue, newTrack];
+                    currentQueueIndex = currentQueue.length - 1; // Add to end
+
+                    await updateSessionState({
+                        queue: currentQueue,
+                        currentQueueIndex: currentQueueIndex,
+                        isPlaying: currentAutoplay,
+                        currentTime: 0,
+                    });
+                    setStatusMessage(`Added local audio: ${file.name} to queue.`);
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        addYoutubeToQueueBtn.addEventListener('click', async () => {
+            const input = youtubeUrlInput.value;
+            let videoId = '';
+            const regExp = /(?:https?:\/\/)?(?:www\.)?(?:m\.)?(?:youtube\.com|youtu\.be)\/(?:watch\?v=|embed\/|v\/|)([\w-]{11})(?:\S+)?/;
+            const match = input.match(regExp);
+            if (match && match[1]) {
+                videoId = match[1];
+            } else if (input.length === 11) {
+                videoId = input;
+            }
+
+            if (videoId) {
+                const newTrack = {
+                    sourceType: 'youtube',
+                    videoId: videoId,
+                    title: `YouTube Video: ${videoId}`,
+                    currentTime: 0,
+                };
+                currentQueue = [...currentQueue, newTrack];
+                currentQueueIndex = currentQueue.length - 1; // Add to end
+
+                await updateSessionState({
+                    queue: currentQueue,
+                    currentQueueIndex: currentQueueIndex,
+                    isPlaying: currentAutoplay,
+                    currentTime: 0,
+                });
+                setStatusMessage(`Added YouTube video: ${videoId} to queue.`);
+                youtubeUrlInput.value = ''; // Clear input
+            } else {
+                setStatusMessage('Invalid YouTube URL or ID.');
+            }
+        });
+
+        // Playback Controls
+        playPauseBtn.addEventListener('click', async () => {
+            if (!currentTrackTitleDisplay.textContent) {
+                setStatusMessage('No track loaded to play.');
+                return;
+            }
+
+            if (currentIsPlaying) {
+                pauseCurrentTrack();
+                await updateSessionState({ isPlaying: false });
+            } else {
+                playCurrentTrack();
+                await updateSessionState({ isPlaying: true });
+            }
+        });
+
+        playPreviousBtn.addEventListener('click', async () => {
+            if (isHost && currentQueueIndex > 0) {
+                await updateSessionState({
+                    currentQueueIndex: currentQueueIndex - 1,
+                    isPlaying: true,
+                    currentTime: 0,
+                });
+            } else if (isHost && currentQueueIndex === 0) {
+                setStatusMessage('Beginning of queue.');
+            }
+        });
+
+        playNextBtn.addEventListener('click', async () => {
+            if (isHost && currentQueueIndex < currentQueue.length - 1) {
+                await updateSessionState({
+                    currentQueueIndex: currentQueueIndex + 1,
+                    isPlaying: true,
+                    currentTime: 0,
+                });
+            } else if (isHost && currentQueueIndex === currentQueue.length - 1) {
+                setStatusMessage('End of queue.');
+            }
+        });
+
+        seekSlider.addEventListener('input', () => {
+            const newTime = parseFloat(seekSlider.value);
+            currentTimeDisplay.textContent = formatTime(newTime);
+            if (currentSourceType === 'local' && localAudioPlayer) {
+                localAudioPlayer.currentTime = newTime;
+            } else if (currentSourceType === 'youtube' && youtubePlayer) {
+                youtubePlayer.seekTo(newTime, true);
+            }
+        });
+
+        seekSlider.addEventListener('change', async () => { // Update Firestore only on change (release of slider)
+            const newTime = parseFloat(seekSlider.value);
+            await updateSessionState({ currentTime: newTime });
+        });
+
+        // Update current time display and slider periodically
+        setInterval(() => {
+            if (currentIsPlaying) {
+                let currentPlaybackTime = 0;
+                let currentPlaybackDuration = 0;
+                if (currentSourceType === 'local' && localAudioPlayer) {
+                    currentPlaybackTime = localAudioPlayer.currentTime;
+                    currentPlaybackDuration = localAudioPlayer.duration;
+                } else if (currentSourceType === 'youtube' && youtubePlayer && typeof youtubePlayer.getCurrentTime === 'function') {
+                    currentPlaybackTime = youtubePlayer.getCurrentTime();
+                    currentPlaybackDuration = youtubePlayer.getDuration();
+                }
+                currentTimeDisplay.textContent = formatTime(currentPlaybackTime);
+                seekSlider.value = currentPlaybackTime;
+                seekSlider.max = currentPlaybackDuration;
+                durationDisplay.textContent = formatTime(currentPlaybackDuration);
+
+                // Only host updates Firestore periodically
+                if (isHost && Math.abs(currentPlaybackTime - seekSlider.value) > 1) {
+                    updateSessionState({ currentTime: currentPlaybackTime });
+                }
+            }
+        }, 1000); // Update every second
+
+        // Local audio player events
+        localAudioPlayer.addEventListener('timeupdate', () => {
+            if (isHost && Math.abs(localAudioPlayer.currentTime - seekSlider.value) > 1) {
+                updateSessionState({ currentTime: localAudioPlayer.currentTime });
+            }
+            currentTimeDisplay.textContent = formatTime(localAudioPlayer.currentTime);
+            seekSlider.value = localAudioPlayer.currentTime;
+        });
+
+        localAudioPlayer.addEventListener('loadedmetadata', () => {
+            seekSlider.max = localAudioPlayer.duration;
+            durationDisplay.textContent = formatTime(localAudioPlayer.duration);
+        });
+
+        localAudioPlayer.addEventListener('ended', handleTrackEnded);
+
+        // Player Settings
+        volumeSlider.addEventListener('input', async () => {
+            const newVolume = parseInt(volumeSlider.value, 10);
+            volumeDisplay.textContent = `${newVolume}%`;
+            if (localAudioPlayer) {
+                localAudioPlayer.volume = newVolume / 100;
+            }
+            if (youtubePlayer && typeof youtubePlayer.setVolume === 'function') {
+                youtubePlayer.setVolume(newVolume);
+            }
+            currentVolume = newVolume;
+            await updateSessionState({ volume: newVolume });
+        });
+
+        autoplayToggle.addEventListener('change', async () => {
+            currentAutoplay = autoplayToggle.checked;
+            await updateSessionState({ autoplay: currentAutoplay });
+        });
+
+        // Initial Firebase Anonymous Sign-in (called once on load)
+        signInAnonymously(auth).catch(error => {
+            console.error('Initial anonymous sign-in failed:', error);
+            setStatusMessage(`Initial authentication failed: ${error.message}`);
+            isFirebaseAuthReady = true; // Mark as ready even if failed
+        });
+
+        // Cleanup on window unload (best effort for host session deletion)
+        window.addEventListener('beforeunload', () => {
+            if (isHost && db && currentSessionId) {
+                const appId = typeof __app_id !== 'undefined' ? __app_id : firebaseConfig.projectId;
+                const sessionDocRef = doc(db, `artifacts/${appId}/public/data/audioSessions`, currentSessionId);
+                // Attempt to delete the session, but this might not always complete on page close
+                deleteDoc(sessionDocRef).then(() => {
+                    console.log('Host session attempted to be deleted on unload.');
+                }).catch(e => console.error('Error deleting host session on unload:', e));
+            }
+            if (firestoreUnsubscribe) {
+                firestoreUnsubscribe();
+            }
+            if (youtubePlayer) {
+                youtubePlayer.destroy();
+            }
+        });
+
+    </script>
+</body>
+</html>
