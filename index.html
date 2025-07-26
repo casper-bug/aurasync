@@ -144,9 +144,9 @@ function App() {
       return;
     }
     if (!isAuthReady) {
-        setStatusMessage('Authentication is still in progress. Please wait.');
-        console.log('createSession called but isAuthReady is false.');
-        return;
+      setStatusMessage('Authentication is still in progress. Please wait.');
+      console.log('createSession called but isAuthReady is false.');
+      return;
     }
 
     setIsCreatingSession(true); // Set loading state
@@ -506,9 +506,9 @@ function App() {
       return;
     }
     if (!isAuthReady) {
-        setStatusMessage('Authentication is still in progress. Please wait.');
-        console.log('joinSession called but isAuthReady is false.');
-        return;
+      setStatusMessage('Authentication is still in progress. Please wait.');
+      console.log('joinSession called but isAuthReady is false.');
+      return;
     }
     if (!joinInputCode) {
       setStatusMessage('Please enter a session code.');
@@ -567,10 +567,10 @@ function App() {
 
         // Apply volume to players
         if (audioRef.current) {
-            audioRef.current.volume = (data.volume !== undefined ? data.volume : 100) / 100;
+          audioRef.current.volume = (data.volume !== undefined ? data.volume : 100) / 100;
         }
         if (youtubePlayerRef.current && typeof youtubePlayerRef.current.setVolume === 'function') {
-            youtubePlayerRef.current.setVolume(data.volume !== undefined ? data.volume : 100);
+          youtubePlayerRef.current.setVolume(data.volume !== undefined ? data.volume : 100);
         }
 
         // Handle player state based on sourceType
@@ -653,35 +653,35 @@ function App() {
                 }
               }, 100);
             } else if (youtubePlayerRef.current.getVideoUrl().indexOf(currentTrack.videoId) === -1) {
-                youtubePlayerRef.current.loadVideoById(currentTrack.videoId, data.currentTime);
-                youtubePlayerRef.current.setVolume(data.volume);
-                if (data.isPlaying) youtubePlayerRef.current.playVideo().catch(e => console.error("YouTube play failed (client):", e));
+              youtubePlayerRef.current.loadVideoById(currentTrack.videoId, data.currentTime);
+              youtubePlayerRef.current.setVolume(data.volume);
+              if (data.isPlaying) youtubePlayerRef.current.playVideo().catch(e => console.error("YouTube play failed (client):", e));
             }
 
             if (youtubePlayerRef.current && typeof youtubePlayerRef.current.getPlayerState === 'function') {
-                const ytPlayerState = youtubePlayerRef.current.getPlayerState();
-                if (data.isPlaying && ytPlayerState !== window.YT.PlayerState.PLAYING) {
-                    youtubePlayerRef.current.playVideo();
-                } else if (!data.isPlaying && ytPlayerState === window.YT.PlayerState.PLAYING) {
-                    youtubePlayerRef.current.pauseVideo();
-                }
-                setIsPlaying(data.isPlaying);
+              const ytPlayerState = youtubePlayerRef.current.getPlayerState();
+              if (data.isPlaying && ytPlayerState !== window.YT.PlayerState.PLAYING) {
+                youtubePlayerRef.current.playVideo();
+              } else if (!data.isPlaying && ytPlayerState === window.YT.PlayerState.PLAYING) {
+                youtubePlayerRef.current.pauseVideo();
+              }
+              setIsPlaying(data.isPlaying);
 
-                const expectedTime = data.currentTime + (Date.now() - data.timestamp) / 1000;
-                const ytCurrentTime = youtubePlayerRef.current.getCurrentTime();
-                const drift = Math.abs(ytCurrentTime - expectedTime);
+              const expectedTime = data.currentTime + (Date.now() - data.timestamp) / 1000;
+              const ytCurrentTime = youtubePlayerRef.current.getCurrentTime();
+              const drift = Math.abs(ytCurrentTime - expectedTime);
 
-                if (drift > 0.5) {
-                    youtubePlayerRef.current.seekTo(expectedTime, true);
-                    setStatusMessage(`Syncing YouTube: Jumped by ${drift.toFixed(2)}s`);
-                }
-                setCurrentTime(ytCurrentTime);
-                setDuration(ytCurrentTime); // Use ytCurrentTime for duration if actual duration isn't available yet
+              if (drift > 0.5) {
+                youtubePlayerRef.current.seekTo(expectedTime, true);
+                setStatusMessage(`Syncing YouTube: Jumped by ${drift.toFixed(2)}s`);
+              }
+              setCurrentTime(ytCurrentTime);
+              setDuration(ytCurrentTime); // Use ytCurrentTime for duration if actual duration isn't available yet
             }
           }
         } else {
-            // No track selected or invalid track type
-            loadAndPlayTrack(null); // Clear players
+          // No track selected or invalid track type
+          loadAndPlayTrack(null); // Clear players
         }
       } else {
         setStatusMessage('Session ended or deleted by host.');
