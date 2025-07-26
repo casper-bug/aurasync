@@ -71,8 +71,8 @@
                 Create New Session (Host)
             </button>
 
-            <div class="flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-2">
-                <input type="text" id="join-input-code" placeholder="Enter Session Code" class="flex-grow w-full sm:w-auto p-3 rounded-xl bg-gray-700 border border-gray-600 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" />
+            <div class="flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-2 w-full">
+                <input type="text" id="join-input-code" placeholder="Enter Session Code" class="flex-grow w-full p-3 rounded-xl bg-gray-700 border border-gray-600 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" />
                 <button id="join-session-btn" class="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-xl shadow-lg transform transition duration-300 ease-in-out hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-opacity-75" disabled>
                     Join Session
                 </button>
@@ -89,7 +89,7 @@
                 <label class="block text-center text-gray-300 text-lg font-semibold mb-2">
                     Add Audio Source to Queue:
                 </label>
-                <div class="flex flex-col sm:flex-row justify-center space-y-2 sm:space-y-0 sm:space-x-4 mb-4">
+                <div class="flex flex-col sm:flex-row justify-center space-y-2 sm:space-y-0 sm:space-x-4 mb-4 w-full">
                     <button id="select-local-btn" class="px-4 py-2 rounded-lg font-semibold transition-colors shadow-md hover:shadow-lg bg-purple-600 text-white">
                         Local File
                     </button>
@@ -123,6 +123,22 @@
                 <audio id="local-audio-player" class="hidden"></audio>
             </div>
 
+            <div id="player-settings" class="space-y-4 pt-4 border-t border-gray-700 hidden">
+                <h2 class="text-xl font-semibold text-purple-200 text-center">Player Settings</h2>
+                <div class="flex items-center space-x-3 w-full">
+                    <label for="volume-slider" class="text-gray-300 w-16">Volume:</label>
+                    <input type="range" id="volume-slider" min="0" max="100" value="100" class="flex-grow h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer range-lg focus:outline-none focus:ring-2 focus:ring-purple-400 accent-purple-500" />
+                    <span id="volume-display" class="text-gray-300">100%</span>
+                </div>
+                <div class="flex items-center justify-between w-full">
+                    <span class="text-gray-300">Autoplay Queue:</span>
+                    <label for="autoplay-toggle" class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="autoplay-toggle" class="sr-only peer" />
+                        <div class="w-11 h-6 bg-gray-600 rounded-full peer peer-focus:ring-4 peer-focus:ring-purple-300 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border after:border-gray-300 after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
+                    </label>
+                </div>
+            </div>
+
             <div id="playback-controls" class="space-y-4 hidden">
                 <div class="flex items-center justify-center space-x-4">
                     <button id="play-previous-btn" class="bg-gray-600 hover:bg-gray-700 text-white p-3 rounded-full shadow-md transform transition duration-300 ease-in-out hover:scale-110 active:scale-95 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-opacity-75">
@@ -147,26 +163,10 @@
                     </button>
                 </div>
 
-                <div class="flex items-center space-x-3">
+                <div class="flex items-center space-x-3 w-full">
                     <span id="current-time-display" class="text-gray-300">0:00</span>
-                    <input type="range" id="seek-slider" min="0" value="0" class="w-full h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer range-lg focus:outline-none focus:ring-2 focus:ring-purple-400 accent-purple-500" />
+                    <input type="range" id="seek-slider" min="0" value="0" class="flex-grow h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer range-lg focus:outline-none focus:ring-2 focus:ring-purple-400 accent-purple-500" />
                     <span id="duration-display" class="text-gray-300">0:00</span>
-                </div>
-            </div>
-
-            <div id="player-settings" class="space-y-4 pt-4 border-t border-gray-700 hidden">
-                <h2 class="text-xl font-semibold text-purple-200 text-center">Player Settings</h2>
-                <div class="flex items-center space-x-3">
-                    <label for="volume-slider" class="text-gray-300 w-16">Volume:</label>
-                    <input type="range" id="volume-slider" min="0" max="100" value="100" class="flex-grow h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer range-lg focus:outline-none focus:ring-2 focus:ring-purple-400 accent-purple-500" />
-                    <span id="volume-display" class="text-gray-300">100%</span>
-                </div>
-                <div class="flex items-center justify-between">
-                    <span class="text-gray-300">Autoplay Queue:</span>
-                    <label for="autoplay-toggle" class="relative inline-flex items-center cursor-pointer">
-                        <input type="checkbox" id="autoplay-toggle" class="sr-only peer" />
-                        <div class="w-11 h-6 bg-gray-600 rounded-full peer peer-focus:ring-4 peer-focus:ring-purple-300 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border after:border-gray-300 after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
-                    </label>
                 </div>
             </div>
 
@@ -175,11 +175,18 @@
                 <ul id="queue-list" class="max-h-48 overflow-y-auto bg-gray-700 bg-opacity-50 rounded-lg p-3 border border-gray-600">
                     <!-- Queue items will be inserted here -->
                 </ul>
+                <div id="queue-actions" class="flex justify-center space-x-4 mt-4">
+                    <button id="clear-queue-btn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-xl shadow-lg transform transition duration-300 ease-in-out hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-75">
+                        Clear Queue
+                    </button>
+                    <button id="remove-current-track-btn" class="bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded-xl shadow-lg transform transition duration-300 ease-in-out hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-opacity-75">
+                        Remove Current
+                    </button>
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- Firebase SDKs -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-auth.js";
@@ -252,11 +259,15 @@
         const queueDisplaySection = document.getElementById('queue-display-section');
         const queueHeader = document.getElementById('queue-header');
         const queueList = document.getElementById('queue-list');
+        const clearQueueBtn = document.getElementById('clear-queue-btn');
+        const removeCurrentTrackBtn = document.getElementById('remove-current-track-btn');
+
 
         // Utility Functions
         function setStatusMessage(message) {
             statusMessageDiv.textContent = message;
             statusMessageDiv.classList.remove('hidden');
+            console.log("Status:", message); // Log status messages
         }
 
         function formatTime(seconds) {
@@ -272,6 +283,7 @@
 
         // Player Control Functions
         function playCurrentTrack() {
+            console.log("Attempting to play track. currentSourceType:", currentSourceType);
             if (currentSourceType === 'local' && localAudioPlayer) {
                 localAudioPlayer.play().catch(e => console.error("Local audio play failed:", e));
             } else if (currentSourceType === 'youtube' && youtubePlayer) {
@@ -283,6 +295,7 @@
         }
 
         function pauseCurrentTrack() {
+            console.log("Attempting to pause track. currentSourceType:", currentSourceType);
             if (currentSourceType === 'local' && localAudioPlayer) {
                 localAudioPlayer.pause();
             } else if (currentSourceType === 'youtube' && youtubePlayer) {
@@ -295,6 +308,7 @@
 
         // Load and Play Track (Centralized logic for both host and client)
         function loadAndPlayTrack(track, playImmediately = false) {
+            console.log("loadAndPlayTrack called with track:", track, "playImmediately:", playImmediately);
             // Clear previous player state
             if (localAudioPlayer) {
                 localAudioPlayer.pause();
@@ -320,6 +334,16 @@
             currentIsPlaying = playImmediately; // Set global playing state
 
             playbackControls.classList.remove('hidden'); // Show controls when a track is loaded
+
+            // Update play/pause icons immediately based on playImmediately flag
+            if (playImmediately) {
+                playIcon.classList.add('hidden');
+                pauseIcon.classList.remove('hidden');
+            } else {
+                playIcon.classList.remove('hidden');
+                pauseIcon.classList.add('hidden');
+            }
+
 
             if (track.sourceType === 'local') {
                 localAudioPlayer.src = track.url;
@@ -398,7 +422,10 @@
 
         // Host: Update session state in Firestore
         async function updateSessionState(updates) {
-            if (!db || !currentSessionId || !isHost) return;
+            if (!db || !currentSessionId || !isHost) {
+                console.warn("updateSessionState skipped: Not host, or session/db not ready.");
+                return;
+            }
             const appId = typeof __app_id !== 'undefined' ? __app_id : firebaseConfig.projectId; // Use projectId as appId fallback
             const sessionDocRef = doc(db, `artifacts/${appId}/public/data/audioSessions`, currentSessionId);
 
@@ -408,6 +435,7 @@
 
             try {
                 await setDoc(sessionDocRef, { ...updates, timestamp: Date.now() }, { merge: true });
+                console.log('Firestore update successful.');
             } catch (error) {
                 console.error('Error updating session state:', error);
                 setStatusMessage(`Error syncing: ${error.message}`);
@@ -416,6 +444,7 @@
 
         // Host: Handle track ending
         async function handleTrackEnded() {
+            console.log("handleTrackEnded called. isHost:", isHost);
             if (isHost) {
                 const nextIndex = currentQueueIndex + 1;
                 if (nextIndex < currentQueue.length) {
@@ -438,6 +467,7 @@
 
         // Host: Navigate queue
         async function playNext() {
+            console.log("playNext clicked. isHost:", isHost, "currentQueueIndex:", currentQueueIndex, "queue.length:", currentQueue.length);
             if (isHost && currentQueueIndex < currentQueue.length - 1) {
                 await updateSessionState({
                     currentQueueIndex: currentQueueIndex + 1,
@@ -450,6 +480,7 @@
         }
 
         async function playPrevious() {
+            console.log("playPrevious clicked. isHost:", isHost, "currentQueueIndex:", currentQueueIndex);
             if (isHost && currentQueueIndex > 0) {
                 await updateSessionState({
                     currentQueueIndex: currentQueueIndex - 1,
@@ -463,6 +494,7 @@
 
         // Render Queue
         function renderQueue() {
+            console.log("renderQueue called. currentQueue:", currentQueue, "currentQueueIndex:", currentQueueIndex);
             queueList.innerHTML = ''; // Clear existing list
             if (currentQueue.length === 0) {
                 queueDisplaySection.classList.add('hidden');
@@ -475,6 +507,21 @@
                 const li = document.createElement('li');
                 li.className = `p-2 rounded-md transition-colors flex items-center justify-between ${index === currentQueueIndex ? 'bg-purple-700 font-bold shadow-inner' : 'hover:bg-gray-600'}`;
                 li.innerHTML = `<span>${index + 1}. ${track.title}</span>`;
+                if (isHost) {
+                    const playThisBtn = document.createElement('button');
+                    playThisBtn.textContent = 'Play This';
+                    playThisBtn.className = 'ml-4 px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded-md text-sm transition-colors';
+                    playThisBtn.addEventListener('click', async (event) => {
+                        event.stopPropagation(); // Prevent li click if any
+                        console.log("Play This button clicked for index:", index);
+                        await updateSessionState({
+                            currentQueueIndex: index,
+                            isPlaying: true,
+                            currentTime: 0,
+                        });
+                    });
+                    li.appendChild(playThisBtn);
+                }
                 queueList.appendChild(li);
             });
         }
@@ -483,6 +530,7 @@
 
         // Firebase Auth State Listener
         onAuthStateChanged(auth, (user) => {
+            console.log("onAuthStateChanged fired. User:", user);
             if (user) {
                 currentUserId = user.uid;
                 isFirebaseAuthReady = true;
@@ -502,6 +550,7 @@
 
         // Create Session
         createSessionBtn.addEventListener('click', async () => {
+            console.log("Create Session button clicked.");
             if (!db) {
                 setStatusMessage('Firebase database not initialized. Please wait or check console for errors.');
                 console.log('createSession called but db is null. isAuthReady:', isFirebaseAuthReady, 'userId:', currentUserId);
@@ -516,7 +565,7 @@
                 setStatusMessage('Authentication is still in progress. Please wait.');
                 console.log('createSession called but isAuthReady is false.');
                 return;
-            }
+                }
 
             isSessionCreationInProgress = true;
             createSessionBtn.textContent = 'Creating Session...';
@@ -545,6 +594,8 @@
                     volume: 100,
                     autoplay: false,
                 });
+                console.log("Session document created in Firestore.");
+
                 currentSessionId = newSessionId;
                 isHost = true;
                 currentSourceType = 'local';
@@ -563,7 +614,8 @@
                 sessionRoleDisplay.textContent = 'Host Session';
                 currentSessionCodeDisplay.textContent = currentSessionId;
                 hostControlsDiv.classList.remove('hidden');
-                playerSettingsDiv.classList.remove('hidden');
+                playerSettingsDiv.classList.remove('hidden'); // Show player settings for host
+                playbackControls.classList.remove('hidden'); // Show playback controls for host
                 renderQueue(); // Render empty queue initially
 
                 setStatusMessage(`Session created! Share code: ${newSessionId}`);
@@ -580,6 +632,7 @@
 
         // Join Session
         joinSessionBtn.addEventListener('click', async () => {
+            console.log("Join Session button clicked.");
             if (!db) {
                 setStatusMessage('Firebase database not initialized. Please wait or check console for errors.');
                 console.log('joinSession called but db is null. isAuthReady:', isFirebaseAuthReady, 'userId:', currentUserId);
@@ -614,6 +667,7 @@
             try {
                 const docSnap = await getDoc(sessionDocRef);
                 if (docSnap.exists()) {
+                    console.log("Session document found for joining.");
                     currentSessionId = joinCode;
                     isHost = false;
                     initialScreen.classList.add('hidden');
@@ -628,6 +682,7 @@
                     listenToSession(joinCode);
                 } else {
                     setStatusMessage('Session not found. Please check the code.');
+                    console.log("Session document NOT found for joining.");
                 }
             } catch (error) {
                 console.error('Error joining session:', error);
@@ -637,10 +692,15 @@
 
         // Listen to Firestore session updates (for both host and clients)
         function listenToSession(sessionIdToListen) {
-            if (!db) return;
+            console.log("listenToSession called for sessionId:", sessionIdToListen);
+            if (!db) {
+                console.warn("listenToSession: db is null.");
+                return;
+            }
 
             // Unsubscribe from any previous listener
             if (firestoreUnsubscribe) {
+                console.log("Unsubscribing from previous Firestore listener.");
                 firestoreUnsubscribe();
                 firestoreUnsubscribe = null;
             }
@@ -649,8 +709,11 @@
             const sessionDocRef = doc(db, `artifacts/${appId}/public/data/audioSessions`, sessionIdToListen);
 
             firestoreUnsubscribe = onSnapshot(sessionDocRef, (docSnap) => {
+                console.log("Firestore onSnapshot received update.");
                 if (docSnap.exists()) {
                     const data = docSnap.data();
+                    console.log("Session data:", data);
+
                     currentQueue = data.queue || [];
                     currentQueueIndex = data.currentQueueIndex || 0;
                     currentVolume = data.volume !== undefined ? data.volume : 100;
@@ -675,6 +738,7 @@
 
                     // Handle player state based on sourceType
                     if (currentTrack && currentTrack.sourceType === 'local') {
+                        console.log("Loading local track:", currentTrack.title);
                         if (youtubePlayer) {
                             youtubePlayer.destroy();
                             youtubePlayer = null;
@@ -686,9 +750,7 @@
                             setStatusMessage(`Loading local audio: ${currentTrack.title}`);
                         }
                         if (localAudioPlayer) {
-                            if (data.isPlaying && !localAudioPlayer.paused) {
-                                // Already playing, no action needed
-                            } else if (data.isPlaying && localAudioPlayer.paused) {
+                            if (data.isPlaying && localAudioPlayer.paused) {
                                 localAudioPlayer.play().catch(e => console.error("Local audio play failed:", e));
                             } else if (!data.isPlaying && !localAudioPlayer.paused) {
                                 localAudioPlayer.pause();
@@ -709,6 +771,7 @@
                             durationDisplay.textContent = formatTime(localAudioPlayer.duration || 0);
                         }
                     } else if (currentTrack && currentTrack.sourceType === 'youtube') {
+                        console.log("Loading YouTube track:", currentTrack.videoId);
                         if (localAudioPlayer) {
                             localAudioPlayer.pause();
                             localAudioPlayer.src = '';
@@ -794,10 +857,12 @@
                         }
                     } else {
                         // No track selected or invalid track type
+                        console.log("No track or invalid type. Clearing players.");
                         loadAndPlayTrack(null); // Clear players
                     }
                 } else {
                     setStatusMessage('Session ended or deleted by host.');
+                    console.log("Session document does not exist. Clearing session state.");
                     // Clean up state if session is deleted
                     currentSessionId = '';
                     isHost = false;
@@ -839,6 +904,7 @@
 
         // Host Controls
         selectLocalBtn.addEventListener('click', () => {
+            console.log("Select Local button clicked.");
             currentSourceType = 'local';
             selectLocalBtn.classList.add('bg-purple-600', 'text-white');
             selectLocalBtn.classList.remove('bg-gray-700', 'text-gray-300', 'hover:bg-gray-600');
@@ -849,6 +915,7 @@
         });
 
         selectYoutubeBtn.addEventListener('click', () => {
+            console.log("Select YouTube button clicked.");
             currentSourceType = 'youtube';
             selectYoutubeBtn.classList.add('bg-purple-600', 'text-white');
             selectYoutubeBtn.classList.remove('bg-gray-700', 'text-gray-300', 'hover:bg-gray-600');
@@ -859,6 +926,7 @@
         });
 
         localFileInput.addEventListener('change', async (event) => {
+            console.log("Local file input changed.");
             const file = event.target.files[0];
             if (file) {
                 if (file.size > 1024 * 1024 * 5) {
@@ -889,6 +957,7 @@
         });
 
         addYoutubeToQueueBtn.addEventListener('click', async () => {
+            console.log("Add YouTube to Queue button clicked.");
             const input = youtubeUrlInput.value;
             let videoId = '';
             const regExp = /(?:https?:\/\/)?(?:www\.)?(?:m\.)?(?:youtube\.com|youtu\.be)\/(?:watch\?v=|embed\/|v\/|)([\w-]{11})(?:\S+)?/;
@@ -924,6 +993,7 @@
 
         // Playback Controls
         playPauseBtn.addEventListener('click', async () => {
+            console.log("Play/Pause button clicked. currentTrackTitleDisplay.textContent:", currentTrackTitleDisplay.textContent);
             if (!currentTrackTitleDisplay.textContent) {
                 setStatusMessage('No track loaded to play.');
                 return;
@@ -939,6 +1009,7 @@
         });
 
         playPreviousBtn.addEventListener('click', async () => {
+            console.log("Play Previous button clicked.");
             if (isHost && currentQueueIndex > 0) {
                 await updateSessionState({
                     currentQueueIndex: currentQueueIndex - 1,
@@ -951,6 +1022,7 @@
         });
 
         playNextBtn.addEventListener('click', async () => {
+            console.log("Play Next button clicked.");
             if (isHost && currentQueueIndex < currentQueue.length - 1) {
                 await updateSessionState({
                     currentQueueIndex: currentQueueIndex + 1,
@@ -1033,18 +1105,66 @@
 
         autoplayToggle.addEventListener('change', async () => {
             currentAutoplay = autoplayToggle.checked;
-            await updateSessionState({ autoplay: currentAutautoplay });
+            await updateSessionState({ autoplay: currentAutoplay });
         });
 
-        // Initial Firebase Anonymous Sign-in (called once on load)
-        signInAnonymously(auth).catch(error => {
-            console.error('Initial anonymous sign-in failed:', error);
-            setStatusMessage(`Initial authentication failed: ${error.message}`);
-            isFirebaseAuthReady = true; // Mark as ready even if failed
+        // Queue Editing
+        clearQueueBtn.addEventListener('click', async () => {
+            console.log("Clear Queue button clicked.");
+            if (isHost && confirm('Are you sure you want to clear the entire queue?')) {
+                await updateSessionState({
+                    queue: [],
+                    currentQueueIndex: 0,
+                    isPlaying: false,
+                    currentTime: 0,
+                });
+                setStatusMessage('Queue cleared.');
+            }
         });
+
+        removeCurrentTrackBtn.addEventListener('click', async () => {
+            console.log("Remove Current Track button clicked.");
+            if (isHost && currentQueue.length > 0) {
+                if (confirm('Are you sure you want to remove the current track from the queue?')) {
+                    const newQueue = [...currentQueue];
+                    newQueue.splice(currentQueueIndex, 1); // Remove current track
+
+                    let newIndex = currentQueueIndex;
+                    if (newIndex >= newQueue.length && newQueue.length > 0) {
+                        newIndex = newQueue.length - 1; // Adjust index if current was last
+                    } else if (newQueue.length === 0) {
+                        newIndex = 0; // Reset if queue is empty
+                    }
+
+                    await updateSessionState({
+                        queue: newQueue,
+                        currentQueueIndex: newIndex,
+                        isPlaying: false, // Pause after removing
+                        currentTime: 0,
+                    });
+                    setStatusMessage('Current track removed.');
+                }
+            } else if (isHost) {
+                setStatusMessage('No track to remove from queue.');
+            }
+        });
+
+
+        // Initial Firebase Anonymous Sign-in (called once on load)
+        // This is now handled by onAuthStateChanged listener, but a direct call ensures it starts.
+        window.addEventListener('load', () => {
+            console.log("Window loaded. Attempting initial anonymous sign-in.");
+            signInAnonymously(auth).catch(error => {
+                console.error('Initial anonymous sign-in failed:', error);
+                setStatusMessage(`Initial authentication failed: ${error.message}`);
+                isFirebaseAuthReady = true; // Mark as ready even if failed
+            });
+        });
+
 
         // Cleanup on window unload (best effort for host session deletion)
         window.addEventListener('beforeunload', () => {
+            console.log("Window beforeunload event. isHost:", isHost, "currentSessionId:", currentSessionId);
             if (isHost && db && currentSessionId) {
                 const appId = typeof __app_id !== 'undefined' ? __app_id : firebaseConfig.projectId;
                 const sessionDocRef = doc(db, `artifacts/${appId}/public/data/audioSessions`, currentSessionId);
@@ -1054,9 +1174,11 @@
                 }).catch(e => console.error('Error deleting host session on unload:', e));
             }
             if (firestoreUnsubscribe) {
+                console.log("Unsubscribing Firestore listener on unload.");
                 firestoreUnsubscribe();
             }
             if (youtubePlayer) {
+                console.log("Destroying YouTube player on unload.");
                 youtubePlayer.destroy();
             }
         });
