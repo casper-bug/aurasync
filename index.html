@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sync Music Player</title>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -35,6 +36,9 @@
             padding: 10px 15px;
             border-radius: 5px;
             cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
         
         .control-btn:hover {
@@ -45,6 +49,10 @@
             background: #333;
             cursor: not-allowed;
             opacity: 0.5;
+        }
+        
+        .control-btn .material-icons {
+            font-size: 20px;
         }
         
         .slider-container {
@@ -70,6 +78,15 @@
             background: #007bff;
             border-radius: 50%;
             cursor: pointer;
+        }
+        
+        .slider::-moz-range-thumb {
+            width: 15px;
+            height: 15px;
+            background: #007bff;
+            border-radius: 50%;
+            cursor: pointer;
+            border: none;
         }
         
         .volume-slider {
@@ -136,6 +153,17 @@
         .track-item.active {
             background: #007bff;
         }
+        
+        .volume-icon {
+            display: flex;
+            align-items: center;
+        }
+        
+        .time-display {
+            min-width: 40px;
+            text-align: center;
+            font-size: 12px;
+        }
     </style>
 </head>
 <body>
@@ -147,50 +175,57 @@
         <input type="text" id="sessionId" placeholder="Enter Session ID">
         <button onclick="createSession()">Create Session</button>
         <button onclick="joinSession()">Join Session</button>
+        <button onclick="leaveSession()">Leave Session</button>
         <span id="currentSession"></span>
     </div>
     
     <div class="player-container">
-        <audio id="audio-player" controls style="width: 100%; margin-bottom: 15px;"></audio>
+        <audio id="audio-player" style="width: 100%; margin-bottom: 15px;" preload="metadata"></audio>
         
         <div class="controls">
-            <button class="control-btn" onclick="previousTrack()">⏮️</button>
-            <button class="control-btn" id="playPauseBtn" onclick="togglePlayPause()">▶️</button>
-            <button class="control-btn" onclick="nextTrack()">⏭️</button>
+            <button class="control-btn" onclick="previousTrack()" disabled>
+                <span class="material-icons">skip_previous</span>
+            </button>
+            <button class="control-btn" id="playPauseBtn" onclick="togglePlayPause()" disabled>
+                <span class="material-icons">play_arrow</span>
+            </button>
+            <button class="control-btn" onclick="nextTrack()" disabled>
+                <span class="material-icons">skip_next</span>
+            </button>
         </div>
         
         <div class="slider-container">
-            <span>0:00</span>
-            <input type="range" class="slider" id="progressSlider" min="0" max="100" value="0">
-            <span id="duration">0:00</span>
+            <span class="time-display">0:00</span>
+            <input type="range" class="slider" id="progressSlider" min="0" max="100" value="0" disabled>
+            <span class="time-display" id="duration">0:00</span>
         </div>
         
         <div class="slider-container">
-            <span>🔊</span>
-            <input type="range" class="slider volume-slider" id="volumeSlider" min="0" max="1" step="0.01" value="0.5">
+            <span class="volume-icon material-icons">volume_up</span>
+            <input type="range" class="slider volume-slider" id="volumeSlider" min="0" max="1" step="0.01" value="0.5" disabled>
             <span id="volumePercent">50%</span>
         </div>
     </div>
     
     <div class="track-info">
         <h3 id="currentTrack">No track selected</h3>
-        <p id="trackDetails">Select a track to play</p>
+        <p id="trackDetails">Create or join a session to start playing music</p>
     </div>
     
     <div class="playlist">
         <h3>Playlist</h3>
         <div id="playlistContainer">
-            <div class="track-item" onclick="selectTrack(0)">
+            <div class="track-item" data-index="0">
                 <strong>Sample Track 1</strong><br>
-                <small>https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3</small>
+                <small>Artist: SoundHelix</small>
             </div>
-            <div class="track-item" onclick="selectTrack(1)">
+            <div class="track-item" data-index="1">
                 <strong>Sample Track 2</strong><br>
-                <small>https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3</small>
+                <small>Artist: SoundHelix</small>
             </div>
-            <div class="track-item" onclick="selectTrack(2)">
+            <div class="track-item" data-index="2">
                 <strong>Sample Track 3</strong><br>
-                <small>https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3</small>
+                <small>Artist: SoundHelix</small>
             </div>
         </div>
     </div>
@@ -223,6 +258,7 @@
         let sessionListener = null;
         let currentTrackIndex = 0;
         let isUpdatingFromSync = false;
+        let syncUpdateTimeout = null;
         
         const audioPlayer = $('audio-player');
         const playPauseBtn = $('playPauseBtn');
@@ -265,12 +301,22 @@
             audioPlayer.addEventListener('play', onPlay);
             audioPlayer.addEventListener('pause', onPause);
             audioPlayer.addEventListener('ended', onTrackEnd);
+            audioPlayer.addEventListener('error', onAudioError);
             
             // Volume slider
             volumeSlider.addEventListener('input', onVolumeChange);
             
             // Progress slider
             progressSlider.addEventListener('input', onSeek);
+            progressSlider.addEventListener('change', onSeek);
+            
+            // Playlist items click handlers
+            document.querySelectorAll('.track-item').forEach(item => {
+                item.addEventListener('click', () => {
+                    const index = parseInt(item.dataset.index);
+                    selectTrack(index);
+                });
+            });
             
             status('Player initialized. Create or join a session to start.');
         }
@@ -282,14 +328,17 @@
             isHost = true;
             
             try {
-                await db.collection('sessions').doc(sessionId).set({
+                const initialData = {
                     host: true,
                     currentTrack: 0,
                     isPlaying: false,
                     currentTime: 0,
                     volume: 0.5,
-                    timestamp: firebase.firestore.FieldValue.serverTimestamp()
-                });
+                    lastUpdate: firebase.firestore.FieldValue.serverTimestamp(),
+                    created: firebase.firestore.FieldValue.serverTimestamp()
+                };
+                
+                await db.collection('sessions').doc(sessionId).set(initialData);
                 
                 $('currentSession').textContent = `Session: ${sessionId} (Host)`;
                 $('sessionId').value = sessionId;
@@ -298,14 +347,14 @@
                 enableHostControls();
                 startSessionListener();
                 
-                status('Session created successfully!');
+                status('Session created successfully! Share the session ID with others.');
             } catch (error) {
                 status('Error creating session: ' + error.message);
             }
         }
 
         async function joinSession() {
-            const sessionId = $('sessionId').value.trim();
+            const sessionId = $('sessionId').value.trim().toUpperCase();
             if (!sessionId) {
                 status('Please enter a session ID');
                 return;
@@ -314,7 +363,7 @@
             try {
                 const sessionDoc = await db.collection('sessions').doc(sessionId).get();
                 if (!sessionDoc.exists) {
-                    status('Session not found');
+                    status('Session not found. Please check the session ID.');
                     return;
                 }
                 
@@ -326,10 +375,40 @@
                 enableGuestControls();
                 startSessionListener();
                 
+                // Sync immediately with current session state
+                const sessionData = sessionDoc.data();
+                await syncWithSession(sessionData);
+                
                 status('Joined session successfully!');
             } catch (error) {
                 status('Error joining session: ' + error.message);
             }
+        }
+
+        function leaveSession() {
+            if (sessionListener) {
+                sessionListener();
+                sessionListener = null;
+            }
+            
+            currentSessionId = null;
+            isHost = false;
+            
+            audioPlayer.pause();
+            audioPlayer.src = '';
+            
+            disableAllControls();
+            
+            $('currentSession').textContent = '';
+            $('currentTrack').textContent = 'No track selected';
+            $('trackDetails').textContent = 'Create or join a session to start playing music';
+            
+            // Reset UI
+            document.querySelectorAll('.track-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            
+            status('Left session. Create or join a session to continue.');
         }
 
         function generateSessionId() {
@@ -338,17 +417,33 @@
 
         // Control management
         function enableHostControls() {
-            audioPlayer.controls = true;
             document.querySelectorAll('.control-btn').forEach(btn => btn.disabled = false);
             volumeSlider.disabled = false;
             progressSlider.disabled = false;
+            document.querySelectorAll('.track-item').forEach(item => {
+                item.style.cursor = 'pointer';
+                item.style.opacity = '1';
+            });
         }
 
         function enableGuestControls() {
-            audioPlayer.controls = false;
+            document.querySelectorAll('.control-btn').forEach(btn => btn.disabled = true);
+            volumeSlider.disabled = false; // Guests can control their own volume
+            progressSlider.disabled = true;
+            document.querySelectorAll('.track-item').forEach(item => {
+                item.style.cursor = 'not-allowed';
+                item.style.opacity = '0.6';
+            });
+        }
+
+        function disableAllControls() {
             document.querySelectorAll('.control-btn').forEach(btn => btn.disabled = true);
             volumeSlider.disabled = true;
             progressSlider.disabled = true;
+            document.querySelectorAll('.track-item').forEach(item => {
+                item.style.cursor = 'not-allowed';
+                item.style.opacity = '0.6';
+            });
         }
 
         // Session synchronization
@@ -359,9 +454,17 @@
             
             sessionListener = db.collection('sessions').doc(currentSessionId)
                 .onSnapshot((doc) => {
-                    if (doc.exists && !isHost) {
-                        syncWithSession(doc.data());
+                    if (doc.exists) {
+                        const data = doc.data();
+                        if (!isHost) {
+                            syncWithSession(data);
+                        }
+                    } else {
+                        status('Session ended or deleted.');
+                        leaveSession();
                     }
+                }, (error) => {
+                    status('Connection error: ' + error.message);
                 });
         }
 
@@ -375,49 +478,67 @@
                 if (sessionData.currentTrack !== currentTrackIndex) {
                     currentTrackIndex = sessionData.currentTrack;
                     loadTrack(currentTrackIndex);
+                    // Wait for track to load before syncing playback
+                    await new Promise(resolve => setTimeout(resolve, 100));
                 }
                 
-                // Sync volume
-                if (Math.abs(audioPlayer.volume - sessionData.volume) > 0.01) {
+                // Sync volume for guests only (hosts control their own volume)
+                if (!isHost && Math.abs(audioPlayer.volume - sessionData.volume) > 0.01) {
                     audioPlayer.volume = sessionData.volume;
                     volumeSlider.value = sessionData.volume;
                     $('volumePercent').textContent = Math.round(sessionData.volume * 100) + '%';
                 }
                 
-                // Sync playback state
+                // Sync playback state and time
+                const timeDiff = Math.abs(audioPlayer.currentTime - (sessionData.currentTime || 0));
+                
                 if (sessionData.isPlaying && audioPlayer.paused) {
-                    audioPlayer.currentTime = sessionData.currentTime;
-                    await audioPlayer.play();
-                    playPauseBtn.textContent = '⏸️';
+                    if (timeDiff > 1) {
+                        audioPlayer.currentTime = sessionData.currentTime || 0;
+                    }
+                    try {
+                        await audioPlayer.play();
+                        playPauseBtn.innerHTML = '<span class="material-icons">pause</span>';
+                    } catch (error) {
+                        console.log('Play failed:', error);
+                    }
                 } else if (!sessionData.isPlaying && !audioPlayer.paused) {
                     audioPlayer.pause();
-                    playPauseBtn.textContent = '▶️';
+                    playPauseBtn.innerHTML = '<span class="material-icons">play_arrow</span>';
                 }
                 
-                // Sync time (with tolerance for network delay)
-                const timeDiff = Math.abs(audioPlayer.currentTime - sessionData.currentTime);
-                if (timeDiff > 1) {
-                    audioPlayer.currentTime = sessionData.currentTime;
+                // Sync time if significant difference (accounting for network delay)
+                if (!audioPlayer.paused && timeDiff > 2) {
+                    audioPlayer.currentTime = sessionData.currentTime || 0;
                 }
                 
             } catch (error) {
                 console.error('Sync error:', error);
             } finally {
-                isUpdatingFromSync = false;
+                setTimeout(() => {
+                    isUpdatingFromSync = false;
+                }, 100);
             }
         }
 
         async function updateSession(updates) {
-            if (!isHost || !currentSessionId) return;
+            if (!isHost || !currentSessionId || isUpdatingFromSync) return;
             
-            try {
-                await db.collection('sessions').doc(currentSessionId).update({
-                    ...updates,
-                    timestamp: firebase.firestore.FieldValue.serverTimestamp()
-                });
-            } catch (error) {
-                console.error('Error updating session:', error);
+            // Throttle updates to prevent spam
+            if (syncUpdateTimeout) {
+                clearTimeout(syncUpdateTimeout);
             }
+            
+            syncUpdateTimeout = setTimeout(async () => {
+                try {
+                    await db.collection('sessions').doc(currentSessionId).update({
+                        ...updates,
+                        lastUpdate: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                } catch (error) {
+                    console.error('Error updating session:', error);
+                }
+            }, 100);
         }
 
         // Playback controls
@@ -440,7 +561,7 @@
         }
 
         async function togglePlayPause() {
-            if (!isHost) return;
+            if (!isHost || !currentSessionId) return;
             
             try {
                 if (audioPlayer.paused) {
@@ -454,7 +575,7 @@
         }
 
         function nextTrack() {
-            if (!isHost) return;
+            if (!isHost || !currentSessionId) return;
             
             const nextIndex = (currentTrackIndex + 1) % playlist.length;
             loadTrack(nextIndex);
@@ -466,7 +587,7 @@
         }
 
         function previousTrack() {
-            if (!isHost) return;
+            if (!isHost || !currentSessionId) return;
             
             const prevIndex = currentTrackIndex === 0 ? playlist.length - 1 : currentTrackIndex - 1;
             loadTrack(prevIndex);
@@ -478,7 +599,7 @@
         }
 
         function selectTrack(index) {
-            if (!isHost) return;
+            if (!isHost || !currentSessionId) return;
             
             loadTrack(index);
             updateSession({
@@ -492,33 +613,33 @@
         function updateDuration() {
             const duration = formatTime(audioPlayer.duration);
             $('duration').textContent = duration;
-            progressSlider.max = audioPlayer.duration;
+            progressSlider.max = audioPlayer.duration || 100;
         }
 
         function updateProgress() {
             if (!isUpdatingFromSync && !progressSlider.matches(':active')) {
-                progressSlider.value = audioPlayer.currentTime;
-                const currentTime = formatTime(audioPlayer.currentTime);
+                progressSlider.value = audioPlayer.currentTime || 0;
+                const currentTime = formatTime(audioPlayer.currentTime || 0);
                 progressSlider.previousElementSibling.textContent = currentTime;
             }
         }
 
         function onPlay() {
-            playPauseBtn.textContent = '⏸️';
-            if (isHost) {
+            playPauseBtn.innerHTML = '<span class="material-icons">pause</span>';
+            if (isHost && !isUpdatingFromSync) {
                 updateSession({
                     isPlaying: true,
-                    currentTime: audioPlayer.currentTime
+                    currentTime: audioPlayer.currentTime || 0
                 });
             }
         }
 
         function onPause() {
-            playPauseBtn.textContent = '▶️';
-            if (isHost) {
+            playPauseBtn.innerHTML = '<span class="material-icons">play_arrow</span>';
+            if (isHost && !isUpdatingFromSync) {
                 updateSession({
                     isPlaying: false,
-                    currentTime: audioPlayer.currentTime
+                    currentTime: audioPlayer.currentTime || 0
                 });
             }
         }
@@ -529,14 +650,19 @@
             }
         }
 
+        function onAudioError(e) {
+            status('Audio error: Unable to load track');
+            console.error('Audio error:', e);
+        }
+
         function onVolumeChange() {
-            if (!isHost) return;
-            
             const volume = parseFloat(volumeSlider.value);
             audioPlayer.volume = volume;
             $('volumePercent').textContent = Math.round(volume * 100) + '%';
             
-            updateSession({ volume });
+            if (isHost) {
+                updateSession({ volume });
+            }
         }
 
         function onSeek() {
@@ -552,7 +678,7 @@
 
         // Utility functions
         function formatTime(seconds) {
-            if (isNaN(seconds)) return '0:00';
+            if (isNaN(seconds) || seconds === null || seconds === undefined) return '0:00';
             
             const mins = Math.floor(seconds / 60);
             const secs = Math.floor(seconds % 60);
@@ -561,6 +687,13 @@
 
         // Initialize when page loads
         document.addEventListener('DOMContentLoaded', initializePlayer);
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+            if (sessionListener) {
+                sessionListener();
+            }
+        });
     </script>
 </body>
 </html>
