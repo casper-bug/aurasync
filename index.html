@@ -3,202 +3,269 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sync Music Player</title>
+    <title>Sync Music Player - Firebase Edition</title>
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <style>
         body {
-            font-family: Arial, sans-serif;
-            max-width: 900px;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1000px;
             margin: 0 auto;
             padding: 20px;
-            background-color: #1a1a1a;
+            background: linear-gradient(135deg, #1a1a2e, #16213e);
             color: white;
+            min-height: 100vh;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .header h1 {
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            font-size: 2.5em;
+            margin: 0;
         }
         
         .player-container {
-            background: #2a2a2a;
-            padding: 20px;
-            border-radius: 10px;
-            margin-bottom: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            padding: 25px;
+            border-radius: 15px;
+            margin-bottom: 25px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
         }
         
         .controls {
             display: flex;
             align-items: center;
-            gap: 10px;
-            margin-bottom: 15px;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 20px;
         }
         
         .control-btn {
-            background: #4a4a4a;
+            background: linear-gradient(145deg, #4a4a4a, #2a2a2a);
             border: none;
             color: white;
-            padding: 10px 15px;
-            border-radius: 5px;
+            padding: 15px;
+            border-radius: 50%;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
         }
         
         .control-btn:hover:not(:disabled) {
-            background: #5a5a5a;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+            background: linear-gradient(145deg, #5a5a5a, #3a3a3a);
         }
         
         .control-btn:disabled {
             background: #333;
             cursor: not-allowed;
             opacity: 0.5;
+            transform: none;
         }
         
         .control-btn .material-icons {
-            font-size: 20px;
+            font-size: 24px;
+        }
+        
+        .play-btn {
+            padding: 20px !important;
+        }
+        
+        .play-btn .material-icons {
+            font-size: 32px !important;
         }
         
         .slider-container {
             display: flex;
             align-items: center;
-            gap: 10px;
-            margin-bottom: 10px;
+            gap: 15px;
+            margin-bottom: 15px;
         }
         
         .slider {
             flex: 1;
-            height: 5px;
-            background: #4a4a4a;
-            border-radius: 5px;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 3px;
             outline: none;
             -webkit-appearance: none;
+            cursor: pointer;
         }
         
         .slider::-webkit-slider-thumb {
             -webkit-appearance: none;
-            width: 15px;
-            height: 15px;
-            background: #007bff;
+            width: 20px;
+            height: 20px;
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
             border-radius: 50%;
             cursor: pointer;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
         }
         
         .slider::-moz-range-thumb {
-            width: 15px;
-            height: 15px;
-            background: #007bff;
+            width: 20px;
+            height: 20px;
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
             border-radius: 50%;
             cursor: pointer;
             border: none;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
         }
         
         .volume-slider {
-            width: 100px;
+            width: 120px;
         }
         
         #status {
-            background: #333;
-            padding: 10px;
-            border-radius: 5px;
-            margin-bottom: 20px;
-            min-height: 20px;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 25px;
+            text-align: center;
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
         }
         
         .session-controls {
-            margin-bottom: 20px;
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 25px;
             align-items: center;
         }
         
+        @media (max-width: 768px) {
+            .session-controls {
+                grid-template-columns: 1fr;
+            }
+        }
+        
         .session-controls input {
-            padding: 8px 12px;
-            border: 1px solid #555;
-            background: #3a3a3a;
+            padding: 12px 16px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            background: rgba(255, 255, 255, 0.1);
             color: white;
-            border-radius: 5px;
-            min-width: 150px;
+            border-radius: 8px;
+            backdrop-filter: blur(5px);
+        }
+        
+        .session-controls input::placeholder {
+            color: rgba(255, 255, 255, 0.6);
         }
         
         .session-controls button {
-            padding: 8px 12px;
-            border: 1px solid #555;
-            background: #007bff;
+            padding: 12px 16px;
+            border: none;
+            background: linear-gradient(45deg, #007bff, #0056b3);
             color: white;
-            border-radius: 5px;
+            border-radius: 8px;
             cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 500;
         }
         
         .session-controls button:hover {
-            background: #0056b3;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 15px rgba(0, 123, 255, 0.3);
         }
         
         .track-info {
-            background: #333;
-            padding: 15px;
-            border-radius: 5px;
-            margin-bottom: 15px;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
         }
         
         .add-track-section {
-            background: #2a2a2a;
-            padding: 15px;
-            border-radius: 5px;
-            margin-bottom: 15px;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
         }
         
         .add-track-form {
             display: flex;
-            gap: 10px;
-            margin-bottom: 10px;
+            gap: 15px;
+            margin-bottom: 15px;
             flex-wrap: wrap;
         }
         
         .add-track-form input {
             flex: 1;
-            padding: 8px 12px;
-            border: 1px solid #555;
-            background: #3a3a3a;
+            padding: 12px 16px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            background: rgba(255, 255, 255, 0.1);
             color: white;
-            border-radius: 5px;
-            min-width: 200px;
+            border-radius: 8px;
+            min-width: 250px;
+            backdrop-filter: blur(5px);
+        }
+        
+        .add-track-form input::placeholder {
+            color: rgba(255, 255, 255, 0.6);
         }
         
         .add-track-form button {
-            padding: 8px 15px;
+            padding: 12px 20px;
             border: none;
-            background: #28a745;
+            background: linear-gradient(45deg, #28a745, #20c997);
             color: white;
-            border-radius: 5px;
+            border-radius: 8px;
             cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 500;
         }
         
         .add-track-form button:hover {
-            background: #218838;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
         }
         
         .playlist {
-            background: #2a2a2a;
-            padding: 15px;
-            border-radius: 5px;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 12px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
         }
         
         .track-item {
-            padding: 12px;
-            margin: 8px 0;
-            background: #3a3a3a;
-            border-radius: 5px;
+            padding: 15px;
+            margin: 10px 0;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
             cursor: pointer;
-            transition: background 0.2s;
+            transition: all 0.3s ease;
             display: flex;
             justify-content: space-between;
             align-items: center;
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
         }
         
         .track-item:hover {
-            background: #4a4a4a;
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateX(5px);
         }
         
         .track-item.active {
-            background: #007bff;
+            background: linear-gradient(45deg, rgba(255, 107, 107, 0.3), rgba(78, 205, 196, 0.3));
+            border-color: rgba(255, 107, 107, 0.5);
         }
         
         .track-item.disabled {
@@ -213,22 +280,23 @@
         .track-duration {
             color: #aaa;
             font-size: 12px;
-            margin-left: 10px;
+            margin-left: 15px;
         }
         
         .remove-track {
-            background: #dc3545;
+            background: linear-gradient(45deg, #dc3545, #c82333);
             border: none;
             color: white;
-            padding: 4px 8px;
-            border-radius: 3px;
+            padding: 6px 10px;
+            border-radius: 5px;
             cursor: pointer;
             font-size: 12px;
-            margin-left: 10px;
+            margin-left: 15px;
+            transition: all 0.3s ease;
         }
         
         .remove-track:hover {
-            background: #c82333;
+            transform: scale(1.1);
         }
         
         .volume-icon {
@@ -237,9 +305,10 @@
         }
         
         .time-display {
-            min-width: 40px;
+            min-width: 50px;
             text-align: center;
-            font-size: 12px;
+            font-size: 14px;
+            font-weight: 500;
         }
         
         .loading {
@@ -251,22 +320,23 @@
         }
         
         .success {
-            color: #51cf66;
+            color: #4ecdc4;
         }
         
         .youtube-preview {
-            background: #333;
-            padding: 10px;
-            border-radius: 5px;
-            margin: 10px 0;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
             display: none;
+            backdrop-filter: blur(5px);
         }
         
         .youtube-preview img {
-            width: 60px;
-            height: 45px;
-            border-radius: 3px;
-            margin-right: 10px;
+            width: 80px;
+            height: 60px;
+            border-radius: 5px;
+            margin-right: 15px;
         }
         
         .youtube-preview-content {
@@ -277,10 +347,50 @@
         .youtube-preview-info {
             flex: 1;
         }
+        
+        #player {
+            width: 100%;
+            height: 300px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .current-session {
+            font-weight: 500;
+            color: #4ecdc4;
+        }
+        
+        .connection-status {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 10px 15px;
+            border-radius: 20px;
+            font-size: 12px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .connected {
+            background: rgba(78, 205, 196, 0.2);
+            color: #4ecdc4;
+            border: 1px solid rgba(78, 205, 196, 0.3);
+        }
+        
+        .disconnected {
+            background: rgba(255, 107, 107, 0.2);
+            color: #ff6b6b;
+            border: 1px solid rgba(255, 107, 107, 0.3);
+        }
     </style>
 </head>
 <body>
-    <h1>🎵 Sync Music Player</h1>
+    <div class="connection-status disconnected" id="connectionStatus">
+        ● Disconnected
+    </div>
+    
+    <div class="header">
+        <h1>🎵 Sync Music Player</h1>
+    </div>
     
     <div id="status">Initializing player...</div>
     
@@ -289,15 +399,18 @@
         <button onclick="createSession()">Create Session</button>
         <button onclick="joinSession()">Join Session</button>
         <button onclick="leaveSession()">Leave Session</button>
-        <span id="currentSession"></span>
     </div>
     
+    <div class="current-session" id="currentSession"></div>
+    
     <div class="player-container">
+        <div id="player"></div>
+        
         <div class="controls">
             <button class="control-btn" onclick="previousTrack()" disabled>
                 <span class="material-icons">skip_previous</span>
             </button>
-            <button class="control-btn" id="playPauseBtn" onclick="togglePlayPause()" disabled>
+            <button class="control-btn play-btn" id="playPauseBtn" onclick="togglePlayPause()" disabled>
                 <span class="material-icons">play_arrow</span>
             </button>
             <button class="control-btn" onclick="nextTrack()" disabled>
@@ -306,14 +419,14 @@
         </div>
         
         <div class="slider-container">
-            <span class="time-display">0:00</span>
+            <span class="time-display" id="currentTime">0:00</span>
             <input type="range" class="slider" id="progressSlider" min="0" max="100" value="0" disabled>
             <span class="time-display" id="duration">0:00</span>
         </div>
         
         <div class="slider-container">
             <span class="volume-icon material-icons">volume_up</span>
-            <input type="range" class="slider volume-slider" id="volumeSlider" min="0" max="1" step="0.01" value="0.5" disabled>
+            <input type="range" class="slider volume-slider" id="volumeSlider" min="0" max="100" value="50" disabled>
             <span id="volumePercent">50%</span>
         </div>
     </div>
@@ -326,11 +439,11 @@
     <div class="add-track-section">
         <h3>Add Music</h3>
         <div class="add-track-form">
-            <input type="text" id="youtubeUrl" placeholder="Enter YouTube URL or search term">
+            <input type="text" id="youtubeUrl" placeholder="Enter YouTube URL (e.g., https://www.youtube.com/watch?v=dQw4w9WgXcQ)">
             <button onclick="addTrackFromYoutube()">Add Track</button>
         </div>
         <div id="youtubePreview" class="youtube-preview"></div>
-        <p><small>You can add YouTube URLs or search for songs. Note: This is a demo - actual YouTube integration would require API keys and proper audio extraction.</small></p>
+        <p><small>Paste a YouTube URL to add it to the playlist. The video will be played using YouTube's embedded player.</small></p>
     </div>
     
     <div class="playlist">
@@ -342,63 +455,41 @@
         </div>
     </div>
 
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getFirestore, doc, setDoc, getDoc, onSnapshot, updateDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyAvdsISdxERqIrZbyecvwKsf2V7lFuPWkc",
+            authDomain: "zync-2baf2.firebaseapp.com",
+            projectId: "zync-2baf2",
+            storageBucket: "zync-2baf2.firebasestorage.app",
+            messagingSenderId: "388386446447",
+            appId: "1:388386446447:web:9659826f61a4aaec01019a"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        
+        // Make Firebase available globally
+        window.db = db;
+        window.firestoreFunctions = { doc, setDoc, getDoc, onSnapshot, updateDoc, serverTimestamp };
+        window.connectionStatus = document.getElementById('connectionStatus');
+        
+        // Update connection status
+        window.connectionStatus.className = 'connection-status connected';
+        window.connectionStatus.textContent = '● Connected to Firebase';
+        
+        console.log('Firebase initialized successfully');
+    </script>
+
+    <!-- YouTube API -->
+    <script src="https://www.youtube.com/iframe_api"></script>
+
     <script>
-        // Simulated backend - in real implementation, use Firebase or your preferred backend
-        class MockBackend {
-            constructor() {
-                this.sessions = new Map();
-                this.listeners = new Map();
-            }
-            
-            async createSession(sessionId, data) {
-                this.sessions.set(sessionId, { ...data, created: Date.now() });
-                this.notifyListeners(sessionId, this.sessions.get(sessionId));
-                return true;
-            }
-            
-            async updateSession(sessionId, updates) {
-                if (this.sessions.has(sessionId)) {
-                    const current = this.sessions.get(sessionId);
-                    const updated = { ...current, ...updates, lastUpdate: Date.now() };
-                    this.sessions.set(sessionId, updated);
-                    this.notifyListeners(sessionId, updated);
-                    return true;
-                }
-                return false;
-            }
-            
-            async getSession(sessionId) {
-                return this.sessions.get(sessionId) || null;
-            }
-            
-            onSnapshot(sessionId, callback) {
-                if (!this.listeners.has(sessionId)) {
-                    this.listeners.set(sessionId, new Set());
-                }
-                this.listeners.get(sessionId).add(callback);
-                
-                // Return unsubscribe function
-                return () => {
-                    const sessionListeners = this.listeners.get(sessionId);
-                    if (sessionListeners) {
-                        sessionListeners.delete(callback);
-                    }
-                };
-            }
-            
-            notifyListeners(sessionId, data) {
-                const sessionListeners = this.listeners.get(sessionId);
-                if (sessionListeners) {
-                    sessionListeners.forEach(callback => {
-                        setTimeout(() => callback({ exists: true, data: () => data }), 0);
-                    });
-                }
-            }
-        }
-
-        // Initialize mock backend
-        const backend = new MockBackend();
-
         // Helper function for DOM selection
         const $ = (id) => document.getElementById(id);
 
@@ -410,11 +501,77 @@
         let isUpdatingFromSync = false;
         let syncUpdateTimeout = null;
         let playlist = [];
+        let player = null;
+        let playerReady = false;
+        let syncProgressInterval = null;
         
-        const audioPlayer = new Audio();
         const playPauseBtn = $('playPauseBtn');
         const progressSlider = $('progressSlider');
         const volumeSlider = $('volumeSlider');
+
+        // YouTube Player API ready callback
+        window.onYouTubeIframeAPIReady = function() {
+            player = new YT.Player('player', {
+                height: '300',
+                width: '100%',
+                playerVars: {
+                    'autoplay': 0,
+                    'controls': 0,
+                    'disablekb': 1,
+                    'modestbranding': 1,
+                    'rel': 0
+                },
+                events: {
+                    'onReady': onPlayerReady,
+                    'onStateChange': onPlayerStateChange,
+                    'onError': onPlayerError
+                }
+            });
+        };
+
+        function onPlayerReady(event) {
+            playerReady = true;
+            status('YouTube player ready. Create or join a session to start.', 'success');
+            
+            // Start progress update interval
+            syncProgressInterval = setInterval(updateProgress, 1000);
+        }
+
+        function onPlayerStateChange(event) {
+            if (isUpdatingFromSync) return;
+            
+            switch (event.data) {
+                case YT.PlayerState.PLAYING:
+                    playPauseBtn.innerHTML = '<span class="material-icons">pause</span>';
+                    if (isHost) {
+                        updateSession({
+                            isPlaying: true,
+                            currentTime: player.getCurrentTime(),
+                            lastUpdate: Date.now()
+                        });
+                    }
+                    break;
+                case YT.PlayerState.PAUSED:
+                    playPauseBtn.innerHTML = '<span class="material-icons">play_arrow</span>';
+                    if (isHost) {
+                        updateSession({
+                            isPlaying: false,
+                            currentTime: player.getCurrentTime(),
+                            lastUpdate: Date.now()
+                        });
+                    }
+                    break;
+                case YT.PlayerState.ENDED:
+                    if (isHost && playlist.length > 1) {
+                        nextTrack();
+                    }
+                    break;
+            }
+        }
+
+        function onPlayerError(event) {
+            status('YouTube player error: ' + event.data, 'error');
+        }
 
         // Status update function
         function status(message, type = 'info') {
@@ -426,20 +583,6 @@
 
         // Initialize the player
         function initializePlayer() {
-            // Set initial volume
-            audioPlayer.volume = 0.5;
-            audioPlayer.crossOrigin = 'anonymous';
-            
-            // Audio event listeners
-            audioPlayer.addEventListener('loadedmetadata', updateDuration);
-            audioPlayer.addEventListener('timeupdate', updateProgress);
-            audioPlayer.addEventListener('play', onPlay);
-            audioPlayer.addEventListener('pause', onPause);
-            audioPlayer.addEventListener('ended', onTrackEnd);
-            audioPlayer.addEventListener('error', onAudioError);
-            audioPlayer.addEventListener('loadstart', () => status('Loading track...'));
-            audioPlayer.addEventListener('canplay', () => status('Track ready to play', 'success'));
-            
             // Volume slider
             volumeSlider.addEventListener('input', onVolumeChange);
             
@@ -447,26 +590,36 @@
             progressSlider.addEventListener('input', onSeek);
             progressSlider.addEventListener('change', onSeek);
             
-            status('Player initialized. Create or join a session to start.');
+            status('Initializing YouTube player...');
         }
 
         // Session management
         async function createSession() {
+            if (!window.db) {
+                status('Firebase not initialized', 'error');
+                return;
+            }
+            
             const sessionId = generateSessionId();
             currentSessionId = sessionId;
             isHost = true;
             
             try {
+                const { doc, setDoc, serverTimestamp } = window.firestoreFunctions;
+                const sessionRef = doc(window.db, 'sessions', sessionId);
+                
                 const initialData = {
                     host: true,
                     currentTrack: 0,
                     isPlaying: false,
                     currentTime: 0,
-                    volume: 0.5,
-                    playlist: playlist
+                    volume: 50,
+                    playlist: playlist,
+                    created: serverTimestamp(),
+                    lastUpdate: Date.now()
                 };
                 
-                await backend.createSession(sessionId, initialData);
+                await setDoc(sessionRef, initialData);
                 
                 $('currentSession').textContent = `Session: ${sessionId} (Host)`;
                 $('sessionId').value = sessionId;
@@ -477,10 +630,16 @@
                 status('Session created successfully! Share the session ID with others.', 'success');
             } catch (error) {
                 status('Error creating session: ' + error.message, 'error');
+                console.error('Firebase error:', error);
             }
         }
 
         async function joinSession() {
+            if (!window.db) {
+                status('Firebase not initialized', 'error');
+                return;
+            }
+            
             const sessionId = $('sessionId').value.trim().toUpperCase();
             if (!sessionId) {
                 status('Please enter a session ID', 'error');
@@ -488,12 +647,16 @@
             }
             
             try {
-                const sessionData = await backend.getSession(sessionId);
-                if (!sessionData) {
+                const { doc, getDoc } = window.firestoreFunctions;
+                const sessionRef = doc(window.db, 'sessions', sessionId);
+                const sessionSnap = await getDoc(sessionRef);
+                
+                if (!sessionSnap.exists()) {
                     status('Session not found. Please check the session ID.', 'error');
                     return;
                 }
                 
+                const sessionData = sessionSnap.data();
                 currentSessionId = sessionId;
                 isHost = false;
                 
@@ -512,6 +675,7 @@
                 status('Joined session successfully!', 'success');
             } catch (error) {
                 status('Error joining session: ' + error.message, 'error');
+                console.error('Firebase error:', error);
             }
         }
 
@@ -524,8 +688,9 @@
             currentSessionId = null;
             isHost = false;
             
-            audioPlayer.pause();
-            audioPlayer.src = '';
+            if (player && playerReady) {
+                player.pauseVideo();
+            }
             
             disableAllControls();
             
@@ -574,8 +739,11 @@
                 sessionListener();
             }
             
-            sessionListener = backend.onSnapshot(currentSessionId, (doc) => {
-                if (doc.exists) {
+            const { doc, onSnapshot } = window.firestoreFunctions;
+            const sessionRef = doc(window.db, 'sessions', currentSessionId);
+            
+            sessionListener = onSnapshot(sessionRef, (doc) => {
+                if (doc.exists()) {
                     const data = doc.data();
                     if (!isHost) {
                         syncWithSession(data);
@@ -588,7 +756,7 @@
         }
 
         async function syncWithSession(sessionData) {
-            if (isUpdatingFromSync) return;
+            if (isUpdatingFromSync || !playerReady) return;
             
             isUpdatingFromSync = true;
             
@@ -603,37 +771,33 @@
                 if (sessionData.currentTrack !== currentTrackIndex && playlist.length > 0) {
                     currentTrackIndex = sessionData.currentTrack;
                     loadTrack(currentTrackIndex);
-                    await new Promise(resolve => setTimeout(resolve, 100));
+                    await new Promise(resolve => setTimeout(resolve, 500));
                 }
                 
                 // Sync volume for guests
-                if (!isHost && Math.abs(audioPlayer.volume - sessionData.volume) > 0.01) {
-                    audioPlayer.volume = sessionData.volume;
+                if (!isHost && Math.abs(volumeSlider.value - sessionData.volume) > 1) {
                     volumeSlider.value = sessionData.volume;
-                    $('volumePercent').textContent = Math.round(sessionData.volume * 100) + '%';
+                    $('volumePercent').textContent = sessionData.volume + '%';
+                    if (player && playerReady) {
+                        player.setVolume(sessionData.volume);
+                    }
                 }
                 
                 // Sync playback state
-                const timeDiff = Math.abs(audioPlayer.currentTime - (sessionData.currentTime || 0));
+                const timeDiff = Math.abs((player.getCurrentTime() || 0) - (sessionData.currentTime || 0));
                 
-                if (sessionData.isPlaying && audioPlayer.paused) {
-                    if (timeDiff > 1) {
-                        audioPlayer.currentTime = sessionData.currentTime || 0;
+                if (sessionData.isPlaying && player.getPlayerState() !== YT.PlayerState.PLAYING) {
+                    if (timeDiff > 2) {
+                        player.seekTo(sessionData.currentTime || 0);
                     }
-                    try {
-                        await audioPlayer.play();
-                        playPauseBtn.innerHTML = '<span class="material-icons">pause</span>';
-                    } catch (error) {
-                        console.log('Play failed:', error);
-                    }
-                } else if (!sessionData.isPlaying && !audioPlayer.paused) {
-                    audioPlayer.pause();
-                    playPauseBtn.innerHTML = '<span class="material-icons">play_arrow</span>';
+                    player.playVideo();
+                } else if (!sessionData.isPlaying && player.getPlayerState() === YT.PlayerState.PLAYING) {
+                    player.pauseVideo();
                 }
                 
                 // Sync time if significant difference
-                if (!audioPlayer.paused && timeDiff > 2) {
-                    audioPlayer.currentTime = sessionData.currentTime || 0;
+                if (player.getPlayerState() === YT.PlayerState.PLAYING && timeDiff > 3) {
+                    player.seekTo(sessionData.currentTime || 0);
                 }
                 
             } catch (error) {
@@ -641,12 +805,12 @@
             } finally {
                 setTimeout(() => {
                     isUpdatingFromSync = false;
-                }, 100);
+                }, 200);
             }
         }
 
         async function updateSession(updates) {
-            if (!isHost || !currentSessionId || isUpdatingFromSync) return;
+            if (!isHost || !currentSessionId || isUpdatingFromSync || !window.db) return;
             
             if (syncUpdateTimeout) {
                 clearTimeout(syncUpdateTimeout);
@@ -654,52 +818,47 @@
             
             syncUpdateTimeout = setTimeout(async () => {
                 try {
-                    await backend.updateSession(currentSessionId, updates);
+                    const { doc, updateDoc } = window.firestoreFunctions;
+                    const sessionRef = doc(window.db, 'sessions', currentSessionId);
+                    await updateDoc(sessionRef, {
+                        ...updates,
+                        lastUpdate: Date.now()
+                    });
                 } catch (error) {
                     console.error('Error updating session:', error);
                 }
             }, 100);
         }
 
-        // YouTube integration (simulated)
+        // YouTube integration
         async function addTrackFromYoutube() {
             const input = $('youtubeUrl').value.trim();
             if (!input) {
-                status('Please enter a YouTube URL or search term', 'error');
+                status('Please enter a YouTube URL', 'error');
                 return;
             }
             
-            status('Processing YouTube request...', 'loading');
+            const videoId = extractYouTubeVideoId(input);
+            if (!videoId) {
+                status('Invalid YouTube URL. Please check the format.', 'error');
+                return;
+            }
+            
+            status('Adding YouTube track...', 'loading');
             
             try {
-                // Simulate YouTube API call
-                await new Promise(resolve => setTimeout(resolve, 1000));
+                // Fetch video info from YouTube
+                const videoInfo = await fetchYouTubeVideoInfo(videoId);
                 
-                let track;
-                if (input.includes('youtube.com') || input.includes('youtu.be')) {
-                    // Extract video ID and create track
-                    const videoId = extractYouTubeVideoId(input);
-                    track = {
-                        id: Date.now().toString(),
-                        title: `YouTube Video ${videoId}`,
-                        artist: 'YouTube',
-                        url: generateDemoAudioUrl(), // Demo audio URL
-                        thumbnail: `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`,
-                        duration: '3:42',
-                        source: 'youtube'
-                    };
-                } else {
-                    // Search term
-                    track = {
-                        id: Date.now().toString(),
-                        title: input,
-                        artist: 'Search Result',
-                        url: generateDemoAudioUrl(),
-                        thumbnail: 'https://via.placeholder.com/120x90/333/fff?text=Music',
-                        duration: '3:30',
-                        source: 'youtube'
-                    };
-                }
+                const track = {
+                    id: Date.now().toString(),
+                    title: videoInfo.title,
+                    artist: videoInfo.author,
+                    videoId: videoId,
+                    thumbnail: videoInfo.thumbnail,
+                    duration: videoInfo.duration,
+                    source: 'youtube'
+                };
                 
                 playlist.push(track);
                 updatePlaylistUI();
@@ -717,17 +876,20 @@
         }
 
         function extractYouTubeVideoId(url) {
-            const match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\n?#]+)/);
-            return match ? match[1] : 'demo123';
+            const regex = /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/;
+            const match = url.match(regex);
+            return match ? match[1] : null;
         }
 
-        function generateDemoAudioUrl() {
-            const demoUrls = [
-                'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
-                'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3',
-                'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3'
-            ];
-            return demoUrls[Math.floor(Math.random() * demoUrls.length)];
+        async function fetchYouTubeVideoInfo(videoId) {
+            // In a real implementation, you would use YouTube Data API
+            // For this demo, we'll create mock data
+            return {
+                title: `YouTube Video ${videoId.slice(0, 8)}`,
+                author: 'YouTube Channel',
+                thumbnail: `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`,
+                duration: '3:42'
+            };
         }
 
         // Playlist management
@@ -779,8 +941,9 @@
             }
             
             if (playlist.length === 0) {
-                audioPlayer.pause();
-                audioPlayer.src = '';
+                if (player && playerReady) {
+                    player.pauseVideo();
+                }
                 $('currentTrack').textContent = 'No track selected';
                 $('trackDetails').textContent = 'Add tracks to continue playing';
             }
@@ -788,13 +951,12 @@
 
         // Playback controls
         function loadTrack(index) {
-            if (index < 0 || index >= playlist.length) return;
+            if (index < 0 || index >= playlist.length || !playerReady) return;
             
             currentTrackIndex = index;
             const track = playlist[index];
             
-            audioPlayer.src = track.url;
-            audioPlayer.load();
+            player.loadVideoById(track.videoId);
             
             $('currentTrack').textContent = track.title;
             $('trackDetails').textContent = `Artist: ${track.artist} • Duration: ${track.duration}`;
@@ -803,13 +965,13 @@
         }
 
         async function togglePlayPause() {
-            if (!isHost || !currentSessionId || playlist.length === 0) return;
+            if (!isHost || !currentSessionId || playlist.length === 0 || !playerReady) return;
             
             try {
-                if (audioPlayer.paused) {
-                    await audioPlayer.play();
+                if (player.getPlayerState() === YT.PlayerState.PLAYING) {
+                    player.pauseVideo();
                 } else {
-                    audioPlayer.pause();
+                    player.playVideo();
                 }
             } catch (error) {
                 status('Playback error: ' + error.message, 'error');
@@ -852,55 +1014,37 @@
         }
 
         // Event handlers
-        function updateDuration() {
-            const duration = formatTime(audioPlayer.duration);
-            $('duration').textContent = duration;
-            progressSlider.max = audioPlayer.duration || 100;
-        }
-
         function updateProgress() {
-            if (!isUpdatingFromSync && document.activeElement !== progressSlider) {
-                progressSlider.value = audioPlayer.currentTime || 0;
-                const currentTime = formatTime(audioPlayer.currentTime || 0);
-                progressSlider.previousElementSibling.textContent = currentTime;
+            if (!playerReady || isUpdatingFromSync || document.activeElement === progressSlider) return;
+            
+            try {
+                const currentTime = player.getCurrentTime() || 0;
+                const duration = player.getDuration() || 0;
+                
+                progressSlider.max = duration;
+                progressSlider.value = currentTime;
+                
+                $('currentTime').textContent = formatTime(currentTime);
+                $('duration').textContent = formatTime(duration);
+                
+                // Host updates session with current time periodically
+                if (isHost && player.getPlayerState() === YT.PlayerState.PLAYING) {
+                    updateSession({
+                        currentTime: currentTime
+                    });
+                }
+            } catch (error) {
+                // Ignore errors during progress update
             }
-        }
-
-        function onPlay() {
-            playPauseBtn.innerHTML = '<span class="material-icons">pause</span>';
-            if (isHost && !isUpdatingFromSync) {
-                updateSession({
-                    isPlaying: true,
-                    currentTime: audioPlayer.currentTime || 0
-                });
-            }
-        }
-
-        function onPause() {
-            playPauseBtn.innerHTML = '<span class="material-icons">play_arrow</span>';
-            if (isHost && !isUpdatingFromSync) {
-                updateSession({
-                    isPlaying: false,
-                    currentTime: audioPlayer.currentTime || 0
-                });
-            }
-        }
-
-        function onTrackEnd() {
-            if (isHost && playlist.length > 1) {
-                nextTrack();
-            }
-        }
-
-        function onAudioError(e) {
-            status('Audio error: Unable to load track', 'error');
-            console.error('Audio error:', e);
         }
 
         function onVolumeChange() {
-            const volume = parseFloat(volumeSlider.value);
-            audioPlayer.volume = volume;
-            $('volumePercent').textContent = Math.round(volume * 100) + '%';
+            const volume = parseInt(volumeSlider.value);
+            $('volumePercent').textContent = volume + '%';
+            
+            if (playerReady) {
+                player.setVolume(volume);
+            }
             
             if (isHost) {
                 updateSession({ volume });
@@ -908,10 +1052,10 @@
         }
 
         function onSeek() {
-            if (!isHost) return;
+            if (!isHost || !playerReady) return;
             
             const seekTime = parseFloat(progressSlider.value);
-            audioPlayer.currentTime = seekTime;
+            player.seekTo(seekTime);
             
             updateSession({
                 currentTime: seekTime
@@ -934,6 +1078,16 @@
         $('youtubeUrl').addEventListener('keypress', function(e) {
             if (e.key === 'Enter') {
                 addTrackFromYoutube();
+            }
+        });
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', function() {
+            if (sessionListener) {
+                sessionListener();
+            }
+            if (syncProgressInterval) {
+                clearInterval(syncProgressInterval);
             }
         });
     </script>
