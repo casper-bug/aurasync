@@ -384,6 +384,12 @@
             color: #ff6b6b;
             border: 1px solid rgba(255, 107, 107, 0.3);
         }
+        
+        .auth-error {
+            background: rgba(255, 107, 107, 0.2);
+            color: #ff6b6b;
+            border: 1px solid rgba(255, 107, 107, 0.3);
+        }
     </style>
 </head>
 <body>
@@ -461,6 +467,7 @@
     <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
 
     <script>
         // Firebase configuration
@@ -474,623 +481,644 @@
         };
 
         // Initialize Firebase
-        firebase.initializeApp(firebaseConfig);
+        const app = firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
+        const auth = firebase.auth();
         
         // Make Firebase available globally
         window.db = db;
+        window.auth = auth;
         window.connectionStatus = document.getElementById('connectionStatus');
         
-        // Update connection status
-        window.connectionStatus.className = 'connection-status connected';
-        window.connectionStatus.textContent = '● Connected to Firebase';
-        
-        console.log('Firebase initialized successfully');
-    </script>
-
-    <!-- YouTube API -->
-    <script src="https://www.youtube.com/iframe_api"></script>
-
-    <script>
-        // Helper function for DOM selection
-        const $ = (id) => document.getElementById(id);
-
-        // Global variables
-        let isHost = false;
-        let currentSessionId = null;
-        let sessionListener = null;
-        let currentTrackIndex = 0;
-        let isUpdatingFromSync = false;
-        let syncUpdateTimeout = null;
-        let playlist = [];
-        let player = null;
-        let playerReady = false;
-        let syncProgressInterval = null;
-        
-        const playPauseBtn = $('playPauseBtn');
-        const progressSlider = $('progressSlider');
-        const volumeSlider = $('volumeSlider');
-
-        // YouTube Player API ready callback
-        window.onYouTubeIframeAPIReady = function() {
-            player = new YT.Player('player', {
-                height: '300',
-                width: '100%',
-                playerVars: {
-                    'autoplay': 0,
-                    'controls': 0,
-                    'disablekb': 1,
-                    'modestbranding': 1,
-                    'rel': 0
-                },
-                events: {
-                    'onReady': onPlayerReady,
-                    'onStateChange': onPlayerStateChange,
-                    'onError': onPlayerError
-                }
+        // Anonymous authentication
+        auth.signInAnonymously()
+            .then(() => {
+                window.connectionStatus.className = 'connection-status connected';
+                window.connectionStatus.textContent = '● Connected to Firebase';
+                console.log('Firebase initialized successfully');
+            })
+            .catch(error => {
+                window.connectionStatus.className = 'connection-status auth-error';
+                window.connectionStatus.textContent = '● Auth Error';
+                console.error('Authentication failed:', error);
+                status('Authentication failed: ' + error.message, 'error');
             });
-        };
 
-        function onPlayerReady(event) {
-            playerReady = true;
-            status('YouTube player ready. Create or join a session to start.', 'success');
-            
-            // Set initial volume
-            player.setVolume(parseInt(volumeSlider.value));
-            
-            // Start progress update interval
-            syncProgressInterval = setInterval(updateProgress, 1000);
-        }
+        // YouTube API
+        <script src="https://www.youtube.com/iframe_api"></script>
 
-        function onPlayerStateChange(event) {
-            if (isUpdatingFromSync) return;
+        <script>
+            // Helper function for DOM selection
+            const $ = (id) => document.getElementById(id);
+
+            // Global variables
+            let isHost = false;
+            let currentSessionId = null;
+            let sessionListener = null;
+            let currentTrackIndex = 0;
+            let isUpdatingFromSync = false;
+            let syncUpdateTimeout = null;
+            let playlist = [];
+            let player = null;
+            let playerReady = false;
+            let syncProgressInterval = null;
             
-            switch (event.data) {
-                case YT.PlayerState.PLAYING:
-                    playPauseBtn.innerHTML = '<span class="material-icons">pause</span>';
-                    if (isHost) {
-                        updateSession({
-                            isPlaying: true,
-                            currentTime: player.getCurrentTime(),
-                            lastUpdate: Date.now()
-                        });
+            const playPauseBtn = $('playPauseBtn');
+            const progressSlider = $('progressSlider');
+            const volumeSlider = $('volumeSlider');
+
+            // YouTube Player API ready callback
+            window.onYouTubeIframeAPIReady = function() {
+                player = new YT.Player('player', {
+                    height: '300',
+                    width: '100%',
+                    playerVars: {
+                        'autoplay': 0,
+                        'controls': 0,
+                        'disablekb': 1,
+                        'modestbranding': 1,
+                        'rel': 0
+                    },
+                    events: {
+                        'onReady': onPlayerReady,
+                        'onStateChange': onPlayerStateChange,
+                        'onError': onPlayerError
                     }
-                    break;
-                case YT.PlayerState.PAUSED:
-                    playPauseBtn.innerHTML = '<span class="material-icons">play_arrow</span>';
-                    if (isHost) {
-                        updateSession({
-                            isPlaying: false,
-                            currentTime: player.getCurrentTime(),
-                            lastUpdate: Date.now()
-                        });
-                    }
-                    break;
-                case YT.PlayerState.ENDED:
-                    if (isHost && playlist.length > 1) {
-                        nextTrack();
-                    }
-                    break;
-            }
-        }
+                });
+            };
 
-        function onPlayerError(event) {
-            status('YouTube player error: ' + event.data, 'error');
-        }
-
-        // Status update function
-        function status(message, type = '') {
-            const statusEl = $('status');
-            statusEl.textContent = message;
-            statusEl.className = type;
-            console.log(message);
-        }
-
-        // Initialize the player
-        function initializePlayer() {
-            // Volume slider
-            volumeSlider.addEventListener('input', onVolumeChange);
-            
-            // Progress slider
-            progressSlider.addEventListener('input', onSeek);
-            progressSlider.addEventListener('change', onSeek);
-            
-            status('Initializing YouTube player...');
-        }
-
-        // Session management
-        async function createSession() {
-            if (!window.db) {
-                status('Firebase not initialized', 'error');
-                return;
+            function onPlayerReady(event) {
+                playerReady = true;
+                status('YouTube player ready. Create or join a session to start.', 'success');
+                
+                // Set initial volume
+                player.setVolume(parseInt(volumeSlider.value));
+                
+                // Start progress update interval
+                syncProgressInterval = setInterval(updateProgress, 1000);
             }
-            
-            const sessionId = generateSessionId();
-            currentSessionId = sessionId;
-            isHost = true;
-            
-            try {
-                const sessionRef = db.collection('sessions').doc(sessionId);
-                
-                const initialData = {
-                    host: true,
-                    currentTrack: 0,
-                    isPlaying: false,
-                    currentTime: 0,
-                    volume: 50,
-                    playlist: playlist,
-                    created: firebase.firestore.FieldValue.serverTimestamp(),
-                    lastUpdate: Date.now()
-                };
-                
-                await sessionRef.set(initialData);
-                
-                $('currentSession').textContent = `Session: ${sessionId} (Host)`;
-                $('sessionId').value = sessionId;
-                
-                enableHostControls();
-                startSessionListener();
-                
-                status('Session created successfully! Share the session ID with others.', 'success');
-            } catch (error) {
-                status('Error creating session: ' + error.message, 'error');
-                console.error('Firebase error:', error);
-            }
-        }
 
-        async function joinSession() {
-            if (!window.db) {
-                status('Firebase not initialized', 'error');
-                return;
-            }
-            
-            const sessionId = $('sessionId').value.trim().toUpperCase();
-            if (!sessionId) {
-                status('Please enter a session ID', 'error');
-                return;
-            }
-            
-            try {
-                const sessionRef = db.collection('sessions').doc(sessionId);
-                const sessionSnap = await sessionRef.get();
+            function onPlayerStateChange(event) {
+                if (isUpdatingFromSync) return;
                 
-                if (!sessionSnap.exists) {
-                    status('Session not found. Please check the session ID.', 'error');
+                switch (event.data) {
+                    case YT.PlayerState.PLAYING:
+                        playPauseBtn.innerHTML = '<span class="material-icons">pause</span>';
+                        if (isHost) {
+                            updateSession({
+                                isPlaying: true,
+                                currentTime: player.getCurrentTime(),
+                                lastUpdate: Date.now()
+                            });
+                        }
+                        break;
+                    case YT.PlayerState.PAUSED:
+                        playPauseBtn.innerHTML = '<span class="material-icons">play_arrow</span>';
+                        if (isHost) {
+                            updateSession({
+                                isPlaying: false,
+                                currentTime: player.getCurrentTime(),
+                                lastUpdate: Date.now()
+                            });
+                        }
+                        break;
+                    case YT.PlayerState.ENDED:
+                        if (isHost && playlist.length > 1) {
+                            nextTrack();
+                        }
+                        break;
+                }
+            }
+
+            function onPlayerError(event) {
+                status('YouTube player error: ' + event.data, 'error');
+            }
+
+            // Status update function
+            function status(message, type = '') {
+                const statusEl = $('status');
+                statusEl.textContent = message;
+                statusEl.className = type;
+                console.log(message);
+            }
+
+            // Initialize the player
+            function initializePlayer() {
+                // Volume slider
+                volumeSlider.addEventListener('input', onVolumeChange);
+                
+                // Progress slider
+                progressSlider.addEventListener('input', onSeek);
+                progressSlider.addEventListener('change', onSeek);
+                
+                status('Initializing YouTube player...');
+            }
+
+            // Session management
+            async function createSession() {
+                if (!window.db) {
+                    status('Firebase not initialized', 'error');
                     return;
                 }
                 
-                const sessionData = sessionSnap.data();
-                currentSessionId = sessionId;
-                isHost = false;
-                
-                $('currentSession').textContent = `Session: ${sessionId} (Guest)`;
-                
-                // Sync playlist
-                playlist = sessionData.playlist || [];
-                updatePlaylistUI();
-                
-                enableGuestControls();
-                startSessionListener();
-                
-                // Sync immediately with current session state
-                await syncWithSession(sessionData);
-                
-                status('Joined session successfully!', 'success');
-            } catch (error) {
-                status('Error joining session: ' + error.message, 'error');
-                console.error('Firebase error:', error);
-            }
-        }
-
-        function leaveSession() {
-            if (sessionListener) {
-                sessionListener();
-                sessionListener = null;
-            }
-            
-            currentSessionId = null;
-            isHost = false;
-            
-            if (player && playerReady) {
-                player.pauseVideo();
-            }
-            
-            disableAllControls();
-            
-            $('currentSession').textContent = '';
-            $('currentTrack').textContent = 'No track selected';
-            $('trackDetails').textContent = 'Create or join a session to start playing music';
-            
-            status('Left session. Create or join a session to continue.');
-        }
-
-        function generateSessionId() {
-            return Math.random().toString(36).substr(2, 6).toUpperCase();
-        }
-
-        // Control management
-        function enableHostControls() {
-            document.querySelectorAll('.control-btn').forEach(btn => btn.disabled = false);
-            volumeSlider.disabled = false;
-            progressSlider.disabled = false;
-            document.querySelectorAll('.track-item').forEach(item => {
-                item.classList.remove('disabled');
-            });
-        }
-
-        function enableGuestControls() {
-            document.querySelectorAll('.control-btn').forEach(btn => btn.disabled = true);
-            volumeSlider.disabled = false; // Guests can control their own volume
-            progressSlider.disabled = true;
-            document.querySelectorAll('.track-item').forEach(item => {
-                item.classList.add('disabled');
-            });
-        }
-
-        function disableAllControls() {
-            document.querySelectorAll('.control-btn').forEach(btn => btn.disabled = true);
-            volumeSlider.disabled = true;
-            progressSlider.disabled = true;
-            document.querySelectorAll('.track-item').forEach(item => {
-                item.classList.add('disabled');
-            });
-        }
-
-        // Session synchronization
-        function startSessionListener() {
-            if (sessionListener) {
-                sessionListener();
-            }
-            
-            const sessionRef = db.collection('sessions').doc(currentSessionId);
-            
-            sessionListener = sessionRef.onSnapshot((doc) => {
-                if (doc.exists) {
-                    const data = doc.data();
-                    if (!isHost) {
-                        syncWithSession(data);
+                // Wait for authentication
+                if (!auth.currentUser) {
+                    try {
+                        await auth.signInAnonymously();
+                    } catch (error) {
+                        status('Authentication failed: ' + error.message, 'error');
+                        return;
                     }
-                } else {
-                    status('Session ended or deleted.');
-                    leaveSession();
                 }
-            });
-        }
+                
+                const sessionId = generateSessionId();
+                currentSessionId = sessionId;
+                isHost = true;
+                
+                try {
+                    const sessionRef = db.collection('sessions').doc(sessionId);
+                    
+                    const initialData = {
+                        host: true,
+                        currentTrack: 0,
+                        isPlaying: false,
+                        currentTime: 0,
+                        volume: 50,
+                        playlist: playlist,
+                        created: firebase.firestore.FieldValue.serverTimestamp(),
+                        lastUpdate: Date.now(),
+                        ownerId: auth.currentUser.uid
+                    };
+                    
+                    await sessionRef.set(initialData);
+                    
+                    $('currentSession').textContent = `Session: ${sessionId} (Host)`;
+                    $('sessionId').value = sessionId;
+                    
+                    enableHostControls();
+                    startSessionListener();
+                    
+                    status('Session created successfully! Share the session ID with others.', 'success');
+                } catch (error) {
+                    status('Error creating session: ' + error.message, 'error');
+                    console.error('Firebase error:', error);
+                }
+            }
 
-        async function syncWithSession(sessionData) {
-            if (isUpdatingFromSync || !playerReady) return;
-            
-            isUpdatingFromSync = true;
-            
-            try {
-                // Sync playlist
-                if (JSON.stringify(playlist) !== JSON.stringify(sessionData.playlist || [])) {
+            async function joinSession() {
+                if (!window.db) {
+                    status('Firebase not initialized', 'error');
+                    return;
+                }
+                
+                const sessionId = $('sessionId').value.trim().toUpperCase();
+                if (!sessionId) {
+                    status('Please enter a session ID', 'error');
+                    return;
+                }
+                
+                try {
+                    const sessionRef = db.collection('sessions').doc(sessionId);
+                    const sessionSnap = await sessionRef.get();
+                    
+                    if (!sessionSnap.exists) {
+                        status('Session not found. Please check the session ID.', 'error');
+                        return;
+                    }
+                    
+                    const sessionData = sessionSnap.data();
+                    currentSessionId = sessionId;
+                    isHost = false;
+                    
+                    $('currentSession').textContent = `Session: ${sessionId} (Guest)`;
+                    
+                    // Sync playlist
                     playlist = sessionData.playlist || [];
                     updatePlaylistUI();
-                }
-                
-                // Sync track
-                if (sessionData.currentTrack !== currentTrackIndex && playlist.length > 0) {
-                    currentTrackIndex = sessionData.currentTrack;
-                    loadTrack(currentTrackIndex);
-                    await new Promise(resolve => setTimeout(resolve, 500));
-                }
-                
-                // Sync volume for guests
-                if (!isHost && Math.abs(volumeSlider.value - sessionData.volume) > 1) {
-                    volumeSlider.value = sessionData.volume;
-                    $('volumePercent').textContent = sessionData.volume + '%';
-                    if (player && playerReady) {
-                        player.setVolume(sessionData.volume);
-                    }
-                }
-                
-                // Sync playback state
-                const timeDiff = Math.abs((player.getCurrentTime() || 0) - (sessionData.currentTime || 0));
-                
-                if (sessionData.isPlaying && player.getPlayerState() !== YT.PlayerState.PLAYING) {
-                    if (timeDiff > 2) {
-                        player.seekTo(sessionData.currentTime || 0);
-                    }
-                    player.playVideo();
-                } else if (!sessionData.isPlaying && player.getPlayerState() === YT.PlayerState.PLAYING) {
-                    player.pauseVideo();
-                }
-                
-                // Sync time if significant difference
-                if (player.getPlayerState() === YT.PlayerState.PLAYING && timeDiff > 3) {
-                    player.seekTo(sessionData.currentTime || 0);
-                }
-                
-            } catch (error) {
-                console.error('Sync error:', error);
-            } finally {
-                setTimeout(() => {
-                    isUpdatingFromSync = false;
-                }, 200);
-            }
-        }
-
-        async function updateSession(updates) {
-            if (!isHost || !currentSessionId || isUpdatingFromSync || !window.db) return;
-            
-            if (syncUpdateTimeout) {
-                clearTimeout(syncUpdateTimeout);
-            }
-            
-            syncUpdateTimeout = setTimeout(async () => {
-                try {
-                    const sessionRef = db.collection('sessions').doc(currentSessionId);
-                    await sessionRef.update({
-                        ...updates,
-                        lastUpdate: Date.now()
-                    });
+                    
+                    enableGuestControls();
+                    startSessionListener();
+                    
+                    // Sync immediately with current session state
+                    await syncWithSession(sessionData);
+                    
+                    status('Joined session successfully!', 'success');
                 } catch (error) {
-                    console.error('Error updating session:', error);
+                    status('Error joining session: ' + error.message, 'error');
+                    console.error('Firebase error:', error);
                 }
-            }, 100);
-        }
+            }
 
-        // YouTube integration
-        async function addTrackFromYoutube() {
-            const input = $('youtubeUrl').value.trim();
-            if (!input) {
-                status('Please enter a YouTube URL', 'error');
-                return;
-            }
-            
-            const videoId = extractYouTubeVideoId(input);
-            if (!videoId) {
-                status('Invalid YouTube URL. Please check the format.', 'error');
-                return;
-            }
-            
-            status('Adding YouTube track...', 'loading');
-            
-            try {
-                // Fetch video info from YouTube
-                const videoInfo = await fetchYouTubeVideoInfo(videoId);
-                
-                const track = {
-                    id: Date.now().toString(),
-                    title: videoInfo.title,
-                    artist: videoInfo.author,
-                    videoId: videoId,
-                    thumbnail: videoInfo.thumbnail,
-                    duration: videoInfo.duration,
-                    source: 'youtube'
-                };
-                
-                playlist.push(track);
-                updatePlaylistUI();
-                
-                if (isHost && currentSessionId) {
-                    await updateSession({ playlist });
+            function leaveSession() {
+                if (sessionListener) {
+                    sessionListener();
+                    sessionListener = null;
                 }
                 
-                $('youtubeUrl').value = '';
-                status('Track added successfully!', 'success');
+                currentSessionId = null;
+                isHost = false;
                 
-            } catch (error) {
-                status('Error adding track: ' + error.message, 'error');
-            }
-        }
-
-        function extractYouTubeVideoId(url) {
-            const regex = /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/;
-            const match = url.match(regex);
-            return match ? match[1] : null;
-        }
-
-        async function fetchYouTubeVideoInfo(videoId) {
-            // In a real implementation, you would use YouTube Data API
-            // For this demo, we'll create mock data
-            return {
-                title: `YouTube Video ${videoId.slice(0, 8)}`,
-                author: 'YouTube Channel',
-                thumbnail: `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`,
-                duration: '3:42'
-            };
-        }
-
-        // Playlist management
-        function updatePlaylistUI() {
-            const container = $('playlistContainer');
-            const countEl = $('playlistCount');
-            
-            countEl.textContent = `(${playlist.length} tracks)`;
-            
-            if (playlist.length === 0) {
-                container.innerHTML = `
-                    <p style="color: #888; text-align: center; padding: 20px;">
-                        No tracks in playlist. Add some music above to get started!
-                    </p>
-                `;
-                return;
-            }
-            
-            container.innerHTML = playlist.map((track, index) => `
-                <div class="track-item ${index === currentTrackIndex ? 'active' : ''}" onclick="selectTrack(${index})">
-                    <div class="track-info-text">
-                        <strong>${track.title}</strong><br>
-                        <small>${track.artist}</small>
-                    </div>
-                    <div>
-                        <span class="track-duration">${track.duration}</span>
-                        ${isHost ? `<button class="remove-track" onclick="removeTrack(${index}); event.stopPropagation();">×</button>` : ''}
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        function removeTrack(index) {
-            if (!isHost) return;
-            
-            playlist.splice(index, 1);
-            
-            if (currentTrackIndex >= index) {
-                currentTrackIndex = Math.max(0, currentTrackIndex - 1);
-            }
-            
-            updatePlaylistUI();
-            
-            if (currentSessionId) {
-                updateSession({ 
-                    playlist,
-                    currentTrack: currentTrackIndex
-                });
-            }
-            
-            if (playlist.length === 0) {
                 if (player && playerReady) {
                     player.pauseVideo();
                 }
+                
+                disableAllControls();
+                
+                $('currentSession').textContent = '';
                 $('currentTrack').textContent = 'No track selected';
-                $('trackDetails').textContent = 'Add tracks to continue playing';
+                $('trackDetails').textContent = 'Create or join a session to start playing music';
+                
+                status('Left session. Create or join a session to continue.');
             }
-        }
 
-        // Playback controls
-        function loadTrack(index) {
-            if (index < 0 || index >= playlist.length || !playerReady) return;
-            
-            currentTrackIndex = index;
-            const track = playlist[index];
-            
-            player.loadVideoById(track.videoId);
-            
-            $('currentTrack').textContent = track.title;
-            $('trackDetails').textContent = `Artist: ${track.artist} • Duration: ${track.duration}`;
-            
-            updatePlaylistUI();
-        }
+            function generateSessionId() {
+                return Math.random().toString(36).substr(2, 6).toUpperCase();
+            }
 
-        async function togglePlayPause() {
-            if (!isHost || !currentSessionId || playlist.length === 0 || !playerReady) return;
-            
-            try {
-                if (player.getPlayerState() === YT.PlayerState.PLAYING) {
-                    player.pauseVideo();
-                } else {
-                    player.playVideo();
+            // Control management
+            function enableHostControls() {
+                document.querySelectorAll('.control-btn').forEach(btn => btn.disabled = false);
+                volumeSlider.disabled = false;
+                progressSlider.disabled = false;
+                document.querySelectorAll('.track-item').forEach(item => {
+                    item.classList.remove('disabled');
+                });
+            }
+
+            function enableGuestControls() {
+                document.querySelectorAll('.control-btn').forEach(btn => btn.disabled = true);
+                volumeSlider.disabled = false; // Guests can control their own volume
+                progressSlider.disabled = true;
+                document.querySelectorAll('.track-item').forEach(item => {
+                    item.classList.add('disabled');
+                });
+            }
+
+            function disableAllControls() {
+                document.querySelectorAll('.control-btn').forEach(btn => btn.disabled = true);
+                volumeSlider.disabled = true;
+                progressSlider.disabled = true;
+                document.querySelectorAll('.track-item').forEach(item => {
+                    item.classList.add('disabled');
+                });
+            }
+
+            // Session synchronization
+            function startSessionListener() {
+                if (sessionListener) {
+                    sessionListener();
                 }
-            } catch (error) {
-                status('Playback error: ' + error.message, 'error');
+                
+                const sessionRef = db.collection('sessions').doc(currentSessionId);
+                
+                sessionListener = sessionRef.onSnapshot((doc) => {
+                    if (doc.exists) {
+                        const data = doc.data();
+                        if (!isHost) {
+                            syncWithSession(data);
+                        }
+                    } else {
+                        status('Session ended or deleted.');
+                        leaveSession();
+                    }
+                });
             }
-        }
 
-        function nextTrack() {
-            if (!isHost || !currentSessionId || playlist.length === 0) return;
-            
-            const nextIndex = (currentTrackIndex + 1) % playlist.length;
-            loadTrack(nextIndex);
-            updateSession({
-                currentTrack: nextIndex,
-                currentTime: 0,
-                isPlaying: false
-            });
-        }
-
-        function previousTrack() {
-            if (!isHost || !currentSessionId || playlist.length === 0) return;
-            
-            const prevIndex = currentTrackIndex === 0 ? playlist.length - 1 : currentTrackIndex - 1;
-            loadTrack(prevIndex);
-            updateSession({
-                currentTrack: prevIndex,
-                currentTime: 0,
-                isPlaying: false
-            });
-        }
-
-        function selectTrack(index) {
-            if (!isHost || !currentSessionId) return;
-            
-            loadTrack(index);
-            updateSession({
-                currentTrack: index,
-                currentTime: 0,
-                isPlaying: false
-            });
-        }
-
-        // Event handlers
-        function updateProgress() {
-            if (!playerReady || isUpdatingFromSync || document.activeElement === progressSlider) return;
-            
-            try {
-                const currentTime = player.getCurrentTime() || 0;
-                const duration = player.getDuration() || 0;
+            async function syncWithSession(sessionData) {
+                if (isUpdatingFromSync || !playerReady) return;
                 
-                progressSlider.max = duration;
-                progressSlider.value = currentTime;
+                isUpdatingFromSync = true;
                 
-                $('currentTime').textContent = formatTime(currentTime);
-                $('duration').textContent = formatTime(duration);
+                try {
+                    // Sync playlist
+                    if (JSON.stringify(playlist) !== JSON.stringify(sessionData.playlist || [])) {
+                        playlist = sessionData.playlist || [];
+                        updatePlaylistUI();
+                    }
+                    
+                    // Sync track
+                    if (sessionData.currentTrack !== currentTrackIndex && playlist.length > 0) {
+                        currentTrackIndex = sessionData.currentTrack;
+                        loadTrack(currentTrackIndex);
+                        await new Promise(resolve => setTimeout(resolve, 500));
+                    }
+                    
+                    // Sync volume for guests
+                    if (!isHost && Math.abs(volumeSlider.value - sessionData.volume) > 1) {
+                        volumeSlider.value = sessionData.volume;
+                        $('volumePercent').textContent = sessionData.volume + '%';
+                        if (player && playerReady) {
+                            player.setVolume(sessionData.volume);
+                        }
+                    }
+                    
+                    // Sync playback state
+                    const timeDiff = Math.abs((player.getCurrentTime() || 0) - (sessionData.currentTime || 0));
+                    
+                    if (sessionData.isPlaying && player.getPlayerState() !== YT.PlayerState.PLAYING) {
+                        if (timeDiff > 2) {
+                            player.seekTo(sessionData.currentTime || 0);
+                        }
+                        player.playVideo();
+                    } else if (!sessionData.isPlaying && player.getPlayerState() === YT.PlayerState.PLAYING) {
+                        player.pauseVideo();
+                    }
+                    
+                    // Sync time if significant difference
+                    if (player.getPlayerState() === YT.PlayerState.PLAYING && timeDiff > 3) {
+                        player.seekTo(sessionData.currentTime || 0);
+                    }
+                    
+                } catch (error) {
+                    console.error('Sync error:', error);
+                } finally {
+                    setTimeout(() => {
+                        isUpdatingFromSync = false;
+                    }, 200);
+                }
+            }
+
+            async function updateSession(updates) {
+                if (!isHost || !currentSessionId || isUpdatingFromSync || !window.db) return;
                 
-                // Host updates session with current time periodically
-                if (isHost && player.getPlayerState() === YT.PlayerState.PLAYING) {
-                    updateSession({
-                        currentTime: currentTime
+                if (syncUpdateTimeout) {
+                    clearTimeout(syncUpdateTimeout);
+                }
+                
+                syncUpdateTimeout = setTimeout(async () => {
+                    try {
+                        const sessionRef = db.collection('sessions').doc(currentSessionId);
+                        await sessionRef.update({
+                            ...updates,
+                            lastUpdate: Date.now()
+                        });
+                    } catch (error) {
+                        console.error('Error updating session:', error);
+                    }
+                }, 100);
+            }
+
+            // YouTube integration
+            async function addTrackFromYoutube() {
+                const input = $('youtubeUrl').value.trim();
+                if (!input) {
+                    status('Please enter a YouTube URL', 'error');
+                    return;
+                }
+                
+                const videoId = extractYouTubeVideoId(input);
+                if (!videoId) {
+                    status('Invalid YouTube URL. Please check the format.', 'error');
+                    return;
+                }
+                
+                status('Adding YouTube track...', 'loading');
+                
+                try {
+                    // Fetch video info from YouTube
+                    const videoInfo = await fetchYouTubeVideoInfo(videoId);
+                    
+                    const track = {
+                        id: Date.now().toString(),
+                        title: videoInfo.title,
+                        artist: videoInfo.author,
+                        videoId: videoId,
+                        thumbnail: videoInfo.thumbnail,
+                        duration: videoInfo.duration,
+                        source: 'youtube'
+                    };
+                    
+                    playlist.push(track);
+                    updatePlaylistUI();
+                    
+                    if (isHost && currentSessionId) {
+                        await updateSession({ playlist });
+                    }
+                    
+                    $('youtubeUrl').value = '';
+                    status('Track added successfully!', 'success');
+                    
+                } catch (error) {
+                    status('Error adding track: ' + error.message, 'error');
+                }
+            }
+
+            function extractYouTubeVideoId(url) {
+                const regex = /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/;
+                const match = url.match(regex);
+                return match ? match[1] : null;
+            }
+
+            async function fetchYouTubeVideoInfo(videoId) {
+                // In a real implementation, you would use YouTube Data API
+                // For this demo, we'll create mock data
+                return {
+                    title: `YouTube Video ${videoId.slice(0, 8)}`,
+                    author: 'YouTube Channel',
+                    thumbnail: `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`,
+                    duration: '3:42'
+                };
+            }
+
+            // Playlist management
+            function updatePlaylistUI() {
+                const container = $('playlistContainer');
+                const countEl = $('playlistCount');
+                
+                countEl.textContent = `(${playlist.length} tracks)`;
+                
+                if (playlist.length === 0) {
+                    container.innerHTML = `
+                        <p style="color: #888; text-align: center; padding: 20px;">
+                            No tracks in playlist. Add some music above to get started!
+                        </p>
+                    `;
+                    return;
+                }
+                
+                container.innerHTML = playlist.map((track, index) => `
+                    <div class="track-item ${index === currentTrackIndex ? 'active' : ''}" onclick="selectTrack(${index})">
+                        <div class="track-info-text">
+                            <strong>${track.title}</strong><br>
+                            <small>${track.artist}</small>
+                        </div>
+                        <div>
+                            <span class="track-duration">${track.duration}</span>
+                            ${isHost ? `<button class="remove-track" onclick="removeTrack(${index}); event.stopPropagation();">×</button>` : ''}
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            function removeTrack(index) {
+                if (!isHost) return;
+                
+                playlist.splice(index, 1);
+                
+                if (currentTrackIndex >= index) {
+                    currentTrackIndex = Math.max(0, currentTrackIndex - 1);
+                }
+                
+                updatePlaylistUI();
+                
+                if (currentSessionId) {
+                    updateSession({ 
+                        playlist,
+                        currentTrack: currentTrackIndex
                     });
                 }
-            } catch (error) {
-                // Ignore errors during progress update
+                
+                if (playlist.length === 0) {
+                    if (player && playerReady) {
+                        player.pauseVideo();
+                    }
+                    $('currentTrack').textContent = 'No track selected';
+                    $('trackDetails').textContent = 'Add tracks to continue playing';
+                }
             }
-        }
 
-        function onVolumeChange() {
-            const volume = parseInt(volumeSlider.value);
-            $('volumePercent').textContent = volume + '%';
-            
-            if (playerReady) {
-                player.setVolume(volume);
+            // Playback controls
+            function loadTrack(index) {
+                if (index < 0 || index >= playlist.length || !playerReady) return;
+                
+                currentTrackIndex = index;
+                const track = playlist[index];
+                
+                player.loadVideoById(track.videoId);
+                
+                $('currentTrack').textContent = track.title;
+                $('trackDetails').textContent = `Artist: ${track.artist} • Duration: ${track.duration}`;
+                
+                updatePlaylistUI();
             }
-            
-            if (isHost) {
-                updateSession({ volume });
-            }
-        }
 
-        function onSeek() {
-            if (!isHost || !playerReady) return;
-            
-            const seekTime = parseFloat(progressSlider.value);
-            player.seekTo(seekTime);
-            
-            updateSession({
-                currentTime: seekTime
+            async function togglePlayPause() {
+                if (!isHost || !currentSessionId || playlist.length === 0 || !playerReady) return;
+                
+                try {
+                    if (player.getPlayerState() === YT.PlayerState.PLAYING) {
+                        player.pauseVideo();
+                    } else {
+                        player.playVideo();
+                    }
+                } catch (error) {
+                    status('Playback error: ' + error.message, 'error');
+                }
+            }
+
+            function nextTrack() {
+                if (!isHost || !currentSessionId || playlist.length === 0) return;
+                
+                const nextIndex = (currentTrackIndex + 1) % playlist.length;
+                loadTrack(nextIndex);
+                updateSession({
+                    currentTrack: nextIndex,
+                    currentTime: 0,
+                    isPlaying: false
+                });
+            }
+
+            function previousTrack() {
+                if (!isHost || !currentSessionId || playlist.length === 0) return;
+                
+                const prevIndex = currentTrackIndex === 0 ? playlist.length - 1 : currentTrackIndex - 1;
+                loadTrack(prevIndex);
+                updateSession({
+                    currentTrack: prevIndex,
+                    currentTime: 0,
+                    isPlaying: false
+                });
+            }
+
+            function selectTrack(index) {
+                if (!isHost || !currentSessionId) return;
+                
+                loadTrack(index);
+                updateSession({
+                    currentTrack: index,
+                    currentTime: 0,
+                    isPlaying: false
+                });
+            }
+
+            // Event handlers
+            function updateProgress() {
+                if (!playerReady || isUpdatingFromSync || document.activeElement === progressSlider) return;
+                
+                try {
+                    const currentTime = player.getCurrentTime() || 0;
+                    const duration = player.getDuration() || 0;
+                    
+                    progressSlider.max = duration;
+                    progressSlider.value = currentTime;
+                    
+                    $('currentTime').textContent = formatTime(currentTime);
+                    $('duration').textContent = formatTime(duration);
+                    
+                    // Host updates session with current time periodically
+                    if (isHost && player.getPlayerState() === YT.PlayerState.PLAYING) {
+                        updateSession({
+                            currentTime: currentTime
+                        });
+                    }
+                } catch (error) {
+                    // Ignore errors during progress update
+                }
+            }
+
+            function onVolumeChange() {
+                const volume = parseInt(volumeSlider.value);
+                $('volumePercent').textContent = volume + '%';
+                
+                if (playerReady) {
+                    player.setVolume(volume);
+                }
+                
+                if (isHost) {
+                    updateSession({ volume });
+                }
+            }
+
+            function onSeek() {
+                if (!isHost || !playerReady) return;
+                
+                const seekTime = parseFloat(progressSlider.value);
+                player.seekTo(seekTime);
+                
+                updateSession({
+                    currentTime: seekTime
+                });
+            }
+
+            // Utility functions
+            function formatTime(seconds) {
+                if (isNaN(seconds) || seconds === null || seconds === undefined) return '0:00';
+                
+                const mins = Math.floor(seconds / 60);
+                const secs = Math.floor(seconds % 60);
+                return `${mins}:${secs.toString().padStart(2, '0')}`;
+            }
+
+            // Initialize when page loads
+            document.addEventListener('DOMContentLoaded', initializePlayer);
+
+            // Handle Enter key in YouTube input
+            $('youtubeUrl').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    addTrackFromYoutube();
+                }
             });
-        }
 
-        // Utility functions
-        function formatTime(seconds) {
-            if (isNaN(seconds) || seconds === null || seconds === undefined) return '0:00';
-            
-            const mins = Math.floor(seconds / 60);
-            const secs = Math.floor(seconds % 60);
-            return `${mins}:${secs.toString().padStart(2, '0')}`;
-        }
-
-        // Initialize when page loads
-        document.addEventListener('DOMContentLoaded', initializePlayer);
-
-        // Handle Enter key in YouTube input
-        $('youtubeUrl').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                addTrackFromYoutube();
-            }
-        });
-
-        // Cleanup on page unload
-        window.addEventListener('beforeunload', function() {
-            if (sessionListener) {
-                sessionListener();
-            }
-            if (syncProgressInterval) {
-                clearInterval(syncProgressInterval);
-            }
-        });
+            // Cleanup on page unload
+            window.addEventListener('beforeunload', function() {
+                if (sessionListener) {
+                    sessionListener();
+                }
+                if (syncProgressInterval) {
+                    clearInterval(syncProgressInterval);
+                }
+            });
+        </script>
     </script>
 </body>
 </html>
