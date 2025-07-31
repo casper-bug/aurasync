@@ -8,7 +8,7 @@
     <style>
         body {
             font-family: Arial, sans-serif;
-            max-width: 800px;
+            max-width: 900px;
             margin: 0 auto;
             padding: 20px;
             background-color: #1a1a1a;
@@ -41,7 +41,7 @@
             justify-content: center;
         }
         
-        .control-btn:hover {
+        .control-btn:hover:not(:disabled) {
             background: #5a5a5a;
         }
         
@@ -91,7 +91,6 @@
         
         .volume-slider {
             width: 100px;
-            vertical-align: middle;
         }
         
         #status {
@@ -104,19 +103,27 @@
         
         .session-controls {
             margin-bottom: 20px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
         }
         
-        .session-controls input, .session-controls button {
+        .session-controls input {
             padding: 8px 12px;
-            margin: 5px;
             border: 1px solid #555;
             background: #3a3a3a;
             color: white;
             border-radius: 5px;
+            min-width: 150px;
         }
         
         .session-controls button {
+            padding: 8px 12px;
+            border: 1px solid #555;
             background: #007bff;
+            color: white;
+            border-radius: 5px;
             cursor: pointer;
         }
         
@@ -131,6 +138,43 @@
             margin-bottom: 15px;
         }
         
+        .add-track-section {
+            background: #2a2a2a;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+        }
+        
+        .add-track-form {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+        }
+        
+        .add-track-form input {
+            flex: 1;
+            padding: 8px 12px;
+            border: 1px solid #555;
+            background: #3a3a3a;
+            color: white;
+            border-radius: 5px;
+            min-width: 200px;
+        }
+        
+        .add-track-form button {
+            padding: 8px 15px;
+            border: none;
+            background: #28a745;
+            color: white;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        
+        .add-track-form button:hover {
+            background: #218838;
+        }
+        
         .playlist {
             background: #2a2a2a;
             padding: 15px;
@@ -138,12 +182,15 @@
         }
         
         .track-item {
-            padding: 10px;
-            margin: 5px 0;
+            padding: 12px;
+            margin: 8px 0;
             background: #3a3a3a;
             border-radius: 5px;
             cursor: pointer;
             transition: background 0.2s;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
         
         .track-item:hover {
@@ -152,6 +199,36 @@
         
         .track-item.active {
             background: #007bff;
+        }
+        
+        .track-item.disabled {
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+        
+        .track-info-text {
+            flex: 1;
+        }
+        
+        .track-duration {
+            color: #aaa;
+            font-size: 12px;
+            margin-left: 10px;
+        }
+        
+        .remove-track {
+            background: #dc3545;
+            border: none;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 12px;
+            margin-left: 10px;
+        }
+        
+        .remove-track:hover {
+            background: #c82333;
         }
         
         .volume-icon {
@@ -164,12 +241,48 @@
             text-align: center;
             font-size: 12px;
         }
+        
+        .loading {
+            opacity: 0.7;
+        }
+        
+        .error {
+            color: #ff6b6b;
+        }
+        
+        .success {
+            color: #51cf66;
+        }
+        
+        .youtube-preview {
+            background: #333;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            display: none;
+        }
+        
+        .youtube-preview img {
+            width: 60px;
+            height: 45px;
+            border-radius: 3px;
+            margin-right: 10px;
+        }
+        
+        .youtube-preview-content {
+            display: flex;
+            align-items: center;
+        }
+        
+        .youtube-preview-info {
+            flex: 1;
+        }
     </style>
 </head>
 <body>
-    <h1>Sync Music Player</h1>
+    <h1>🎵 Sync Music Player</h1>
     
-    <div id="status">Initializing...</div>
+    <div id="status">Initializing player...</div>
     
     <div class="session-controls">
         <input type="text" id="sessionId" placeholder="Enter Session ID">
@@ -180,8 +293,6 @@
     </div>
     
     <div class="player-container">
-        <audio id="audio-player" style="width: 100%; margin-bottom: 15px;" preload="metadata"></audio>
-        
         <div class="controls">
             <button class="control-btn" onclick="previousTrack()" disabled>
                 <span class="material-icons">skip_previous</span>
@@ -212,42 +323,81 @@
         <p id="trackDetails">Create or join a session to start playing music</p>
     </div>
     
+    <div class="add-track-section">
+        <h3>Add Music</h3>
+        <div class="add-track-form">
+            <input type="text" id="youtubeUrl" placeholder="Enter YouTube URL or search term">
+            <button onclick="addTrackFromYoutube()">Add Track</button>
+        </div>
+        <div id="youtubePreview" class="youtube-preview"></div>
+        <p><small>You can add YouTube URLs or search for songs. Note: This is a demo - actual YouTube integration would require API keys and proper audio extraction.</small></p>
+    </div>
+    
     <div class="playlist">
-        <h3>Playlist</h3>
+        <h3>Playlist <span id="playlistCount">(0 tracks)</span></h3>
         <div id="playlistContainer">
-            <div class="track-item" data-index="0">
-                <strong>Sample Track 1</strong><br>
-                <small>Artist: SoundHelix</small>
-            </div>
-            <div class="track-item" data-index="1">
-                <strong>Sample Track 2</strong><br>
-                <small>Artist: SoundHelix</small>
-            </div>
-            <div class="track-item" data-index="2">
-                <strong>Sample Track 3</strong><br>
-                <small>Artist: SoundHelix</small>
-            </div>
+            <p style="color: #888; text-align: center; padding: 20px;">
+                No tracks in playlist. Add some music above to get started!
+            </p>
         </div>
     </div>
 
-    <!-- Firebase SDK -->
-    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
-
     <script>
-        // Firebase configuration
-        const firebaseConfig = {
-            apiKey: "AIzaSyAqL8w9Qy4N2mRxTkVvJ5HhFgBpL7XcD9E",
-            authDomain: "sync-music-player.firebaseapp.com",
-            projectId: "sync-music-player",
-            storageBucket: "sync-music-player.appspot.com",
-            messagingSenderId: "123456789012",
-            appId: "1:123456789012:web:abcdef123456789"
-        };
+        // Simulated backend - in real implementation, use Firebase or your preferred backend
+        class MockBackend {
+            constructor() {
+                this.sessions = new Map();
+                this.listeners = new Map();
+            }
+            
+            async createSession(sessionId, data) {
+                this.sessions.set(sessionId, { ...data, created: Date.now() });
+                this.notifyListeners(sessionId, this.sessions.get(sessionId));
+                return true;
+            }
+            
+            async updateSession(sessionId, updates) {
+                if (this.sessions.has(sessionId)) {
+                    const current = this.sessions.get(sessionId);
+                    const updated = { ...current, ...updates, lastUpdate: Date.now() };
+                    this.sessions.set(sessionId, updated);
+                    this.notifyListeners(sessionId, updated);
+                    return true;
+                }
+                return false;
+            }
+            
+            async getSession(sessionId) {
+                return this.sessions.get(sessionId) || null;
+            }
+            
+            onSnapshot(sessionId, callback) {
+                if (!this.listeners.has(sessionId)) {
+                    this.listeners.set(sessionId, new Set());
+                }
+                this.listeners.get(sessionId).add(callback);
+                
+                // Return unsubscribe function
+                return () => {
+                    const sessionListeners = this.listeners.get(sessionId);
+                    if (sessionListeners) {
+                        sessionListeners.delete(callback);
+                    }
+                };
+            }
+            
+            notifyListeners(sessionId, data) {
+                const sessionListeners = this.listeners.get(sessionId);
+                if (sessionListeners) {
+                    sessionListeners.forEach(callback => {
+                        setTimeout(() => callback({ exists: true, data: () => data }), 0);
+                    });
+                }
+            }
+        }
 
-        // Initialize Firebase
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.firestore();
+        // Initialize mock backend
+        const backend = new MockBackend();
 
         // Helper function for DOM selection
         const $ = (id) => document.getElementById(id);
@@ -259,34 +409,18 @@
         let currentTrackIndex = 0;
         let isUpdatingFromSync = false;
         let syncUpdateTimeout = null;
+        let playlist = [];
         
-        const audioPlayer = $('audio-player');
+        const audioPlayer = new Audio();
         const playPauseBtn = $('playPauseBtn');
         const progressSlider = $('progressSlider');
         const volumeSlider = $('volumeSlider');
-        
-        // Sample playlist
-        const playlist = [
-            {
-                title: "Sample Track 1",
-                url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
-                artist: "SoundHelix"
-            },
-            {
-                title: "Sample Track 2", 
-                url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3",
-                artist: "SoundHelix"
-            },
-            {
-                title: "Sample Track 3",
-                url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3",
-                artist: "SoundHelix"
-            }
-        ];
 
         // Status update function
-        function status(message) {
-            $('status').textContent = message;
+        function status(message, type = 'info') {
+            const statusEl = $('status');
+            statusEl.textContent = message;
+            statusEl.className = type;
             console.log(message);
         }
 
@@ -294,6 +428,7 @@
         function initializePlayer() {
             // Set initial volume
             audioPlayer.volume = 0.5;
+            audioPlayer.crossOrigin = 'anonymous';
             
             // Audio event listeners
             audioPlayer.addEventListener('loadedmetadata', updateDuration);
@@ -302,6 +437,8 @@
             audioPlayer.addEventListener('pause', onPause);
             audioPlayer.addEventListener('ended', onTrackEnd);
             audioPlayer.addEventListener('error', onAudioError);
+            audioPlayer.addEventListener('loadstart', () => status('Loading track...'));
+            audioPlayer.addEventListener('canplay', () => status('Track ready to play', 'success'));
             
             // Volume slider
             volumeSlider.addEventListener('input', onVolumeChange);
@@ -309,14 +446,6 @@
             // Progress slider
             progressSlider.addEventListener('input', onSeek);
             progressSlider.addEventListener('change', onSeek);
-            
-            // Playlist items click handlers
-            document.querySelectorAll('.track-item').forEach(item => {
-                item.addEventListener('click', () => {
-                    const index = parseInt(item.dataset.index);
-                    selectTrack(index);
-                });
-            });
             
             status('Player initialized. Create or join a session to start.');
         }
@@ -334,36 +463,34 @@
                     isPlaying: false,
                     currentTime: 0,
                     volume: 0.5,
-                    lastUpdate: firebase.firestore.FieldValue.serverTimestamp(),
-                    created: firebase.firestore.FieldValue.serverTimestamp()
+                    playlist: playlist
                 };
                 
-                await db.collection('sessions').doc(sessionId).set(initialData);
+                await backend.createSession(sessionId, initialData);
                 
                 $('currentSession').textContent = `Session: ${sessionId} (Host)`;
                 $('sessionId').value = sessionId;
                 
-                loadTrack(0);
                 enableHostControls();
                 startSessionListener();
                 
-                status('Session created successfully! Share the session ID with others.');
+                status('Session created successfully! Share the session ID with others.', 'success');
             } catch (error) {
-                status('Error creating session: ' + error.message);
+                status('Error creating session: ' + error.message, 'error');
             }
         }
 
         async function joinSession() {
             const sessionId = $('sessionId').value.trim().toUpperCase();
             if (!sessionId) {
-                status('Please enter a session ID');
+                status('Please enter a session ID', 'error');
                 return;
             }
             
             try {
-                const sessionDoc = await db.collection('sessions').doc(sessionId).get();
-                if (!sessionDoc.exists) {
-                    status('Session not found. Please check the session ID.');
+                const sessionData = await backend.getSession(sessionId);
+                if (!sessionData) {
+                    status('Session not found. Please check the session ID.', 'error');
                     return;
                 }
                 
@@ -372,16 +499,19 @@
                 
                 $('currentSession').textContent = `Session: ${sessionId} (Guest)`;
                 
+                // Sync playlist
+                playlist = sessionData.playlist || [];
+                updatePlaylistUI();
+                
                 enableGuestControls();
                 startSessionListener();
                 
                 // Sync immediately with current session state
-                const sessionData = sessionDoc.data();
                 await syncWithSession(sessionData);
                 
-                status('Joined session successfully!');
+                status('Joined session successfully!', 'success');
             } catch (error) {
-                status('Error joining session: ' + error.message);
+                status('Error joining session: ' + error.message, 'error');
             }
         }
 
@@ -403,16 +533,11 @@
             $('currentTrack').textContent = 'No track selected';
             $('trackDetails').textContent = 'Create or join a session to start playing music';
             
-            // Reset UI
-            document.querySelectorAll('.track-item').forEach(item => {
-                item.classList.remove('active');
-            });
-            
             status('Left session. Create or join a session to continue.');
         }
 
         function generateSessionId() {
-            return Math.random().toString(36).substr(2, 9).toUpperCase();
+            return Math.random().toString(36).substr(2, 6).toUpperCase();
         }
 
         // Control management
@@ -421,8 +546,7 @@
             volumeSlider.disabled = false;
             progressSlider.disabled = false;
             document.querySelectorAll('.track-item').forEach(item => {
-                item.style.cursor = 'pointer';
-                item.style.opacity = '1';
+                item.classList.remove('disabled');
             });
         }
 
@@ -431,8 +555,7 @@
             volumeSlider.disabled = false; // Guests can control their own volume
             progressSlider.disabled = true;
             document.querySelectorAll('.track-item').forEach(item => {
-                item.style.cursor = 'not-allowed';
-                item.style.opacity = '0.6';
+                item.classList.add('disabled');
             });
         }
 
@@ -441,8 +564,7 @@
             volumeSlider.disabled = true;
             progressSlider.disabled = true;
             document.querySelectorAll('.track-item').forEach(item => {
-                item.style.cursor = 'not-allowed';
-                item.style.opacity = '0.6';
+                item.classList.add('disabled');
             });
         }
 
@@ -452,20 +574,17 @@
                 sessionListener();
             }
             
-            sessionListener = db.collection('sessions').doc(currentSessionId)
-                .onSnapshot((doc) => {
-                    if (doc.exists) {
-                        const data = doc.data();
-                        if (!isHost) {
-                            syncWithSession(data);
-                        }
-                    } else {
-                        status('Session ended or deleted.');
-                        leaveSession();
+            sessionListener = backend.onSnapshot(currentSessionId, (doc) => {
+                if (doc.exists) {
+                    const data = doc.data();
+                    if (!isHost) {
+                        syncWithSession(data);
                     }
-                }, (error) => {
-                    status('Connection error: ' + error.message);
-                });
+                } else {
+                    status('Session ended or deleted.');
+                    leaveSession();
+                }
+            });
         }
 
         async function syncWithSession(sessionData) {
@@ -474,22 +593,27 @@
             isUpdatingFromSync = true;
             
             try {
+                // Sync playlist
+                if (JSON.stringify(playlist) !== JSON.stringify(sessionData.playlist || [])) {
+                    playlist = sessionData.playlist || [];
+                    updatePlaylistUI();
+                }
+                
                 // Sync track
-                if (sessionData.currentTrack !== currentTrackIndex) {
+                if (sessionData.currentTrack !== currentTrackIndex && playlist.length > 0) {
                     currentTrackIndex = sessionData.currentTrack;
                     loadTrack(currentTrackIndex);
-                    // Wait for track to load before syncing playback
                     await new Promise(resolve => setTimeout(resolve, 100));
                 }
                 
-                // Sync volume for guests only (hosts control their own volume)
+                // Sync volume for guests
                 if (!isHost && Math.abs(audioPlayer.volume - sessionData.volume) > 0.01) {
                     audioPlayer.volume = sessionData.volume;
                     volumeSlider.value = sessionData.volume;
                     $('volumePercent').textContent = Math.round(sessionData.volume * 100) + '%';
                 }
                 
-                // Sync playback state and time
+                // Sync playback state
                 const timeDiff = Math.abs(audioPlayer.currentTime - (sessionData.currentTime || 0));
                 
                 if (sessionData.isPlaying && audioPlayer.paused) {
@@ -507,7 +631,7 @@
                     playPauseBtn.innerHTML = '<span class="material-icons">play_arrow</span>';
                 }
                 
-                // Sync time if significant difference (accounting for network delay)
+                // Sync time if significant difference
                 if (!audioPlayer.paused && timeDiff > 2) {
                     audioPlayer.currentTime = sessionData.currentTime || 0;
                 }
@@ -524,21 +648,142 @@
         async function updateSession(updates) {
             if (!isHost || !currentSessionId || isUpdatingFromSync) return;
             
-            // Throttle updates to prevent spam
             if (syncUpdateTimeout) {
                 clearTimeout(syncUpdateTimeout);
             }
             
             syncUpdateTimeout = setTimeout(async () => {
                 try {
-                    await db.collection('sessions').doc(currentSessionId).update({
-                        ...updates,
-                        lastUpdate: firebase.firestore.FieldValue.serverTimestamp()
-                    });
+                    await backend.updateSession(currentSessionId, updates);
                 } catch (error) {
                     console.error('Error updating session:', error);
                 }
             }, 100);
+        }
+
+        // YouTube integration (simulated)
+        async function addTrackFromYoutube() {
+            const input = $('youtubeUrl').value.trim();
+            if (!input) {
+                status('Please enter a YouTube URL or search term', 'error');
+                return;
+            }
+            
+            status('Processing YouTube request...', 'loading');
+            
+            try {
+                // Simulate YouTube API call
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                let track;
+                if (input.includes('youtube.com') || input.includes('youtu.be')) {
+                    // Extract video ID and create track
+                    const videoId = extractYouTubeVideoId(input);
+                    track = {
+                        id: Date.now().toString(),
+                        title: `YouTube Video ${videoId}`,
+                        artist: 'YouTube',
+                        url: generateDemoAudioUrl(), // Demo audio URL
+                        thumbnail: `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`,
+                        duration: '3:42',
+                        source: 'youtube'
+                    };
+                } else {
+                    // Search term
+                    track = {
+                        id: Date.now().toString(),
+                        title: input,
+                        artist: 'Search Result',
+                        url: generateDemoAudioUrl(),
+                        thumbnail: 'https://via.placeholder.com/120x90/333/fff?text=Music',
+                        duration: '3:30',
+                        source: 'youtube'
+                    };
+                }
+                
+                playlist.push(track);
+                updatePlaylistUI();
+                
+                if (isHost && currentSessionId) {
+                    await updateSession({ playlist });
+                }
+                
+                $('youtubeUrl').value = '';
+                status('Track added successfully!', 'success');
+                
+            } catch (error) {
+                status('Error adding track: ' + error.message, 'error');
+            }
+        }
+
+        function extractYouTubeVideoId(url) {
+            const match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\n?#]+)/);
+            return match ? match[1] : 'demo123';
+        }
+
+        function generateDemoAudioUrl() {
+            const demoUrls = [
+                'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
+                'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3',
+                'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3'
+            ];
+            return demoUrls[Math.floor(Math.random() * demoUrls.length)];
+        }
+
+        // Playlist management
+        function updatePlaylistUI() {
+            const container = $('playlistContainer');
+            const countEl = $('playlistCount');
+            
+            countEl.textContent = `(${playlist.length} tracks)`;
+            
+            if (playlist.length === 0) {
+                container.innerHTML = `
+                    <p style="color: #888; text-align: center; padding: 20px;">
+                        No tracks in playlist. Add some music above to get started!
+                    </p>
+                `;
+                return;
+            }
+            
+            container.innerHTML = playlist.map((track, index) => `
+                <div class="track-item ${index === currentTrackIndex ? 'active' : ''}" onclick="selectTrack(${index})">
+                    <div class="track-info-text">
+                        <strong>${track.title}</strong><br>
+                        <small>${track.artist}</small>
+                    </div>
+                    <div>
+                        <span class="track-duration">${track.duration}</span>
+                        ${isHost ? `<button class="remove-track" onclick="removeTrack(${index}); event.stopPropagation();">×</button>` : ''}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function removeTrack(index) {
+            if (!isHost) return;
+            
+            playlist.splice(index, 1);
+            
+            if (currentTrackIndex >= index) {
+                currentTrackIndex = Math.max(0, currentTrackIndex - 1);
+            }
+            
+            updatePlaylistUI();
+            
+            if (currentSessionId) {
+                updateSession({ 
+                    playlist,
+                    currentTrack: currentTrackIndex
+                });
+            }
+            
+            if (playlist.length === 0) {
+                audioPlayer.pause();
+                audioPlayer.src = '';
+                $('currentTrack').textContent = 'No track selected';
+                $('trackDetails').textContent = 'Add tracks to continue playing';
+            }
         }
 
         // Playback controls
@@ -552,16 +797,13 @@
             audioPlayer.load();
             
             $('currentTrack').textContent = track.title;
-            $('trackDetails').textContent = `Artist: ${track.artist}`;
+            $('trackDetails').textContent = `Artist: ${track.artist} • Duration: ${track.duration}`;
             
-            // Update playlist UI
-            document.querySelectorAll('.track-item').forEach((item, i) => {
-                item.classList.toggle('active', i === index);
-            });
+            updatePlaylistUI();
         }
 
         async function togglePlayPause() {
-            if (!isHost || !currentSessionId) return;
+            if (!isHost || !currentSessionId || playlist.length === 0) return;
             
             try {
                 if (audioPlayer.paused) {
@@ -570,12 +812,12 @@
                     audioPlayer.pause();
                 }
             } catch (error) {
-                status('Playback error: ' + error.message);
+                status('Playback error: ' + error.message, 'error');
             }
         }
 
         function nextTrack() {
-            if (!isHost || !currentSessionId) return;
+            if (!isHost || !currentSessionId || playlist.length === 0) return;
             
             const nextIndex = (currentTrackIndex + 1) % playlist.length;
             loadTrack(nextIndex);
@@ -587,7 +829,7 @@
         }
 
         function previousTrack() {
-            if (!isHost || !currentSessionId) return;
+            if (!isHost || !currentSessionId || playlist.length === 0) return;
             
             const prevIndex = currentTrackIndex === 0 ? playlist.length - 1 : currentTrackIndex - 1;
             loadTrack(prevIndex);
@@ -617,7 +859,7 @@
         }
 
         function updateProgress() {
-            if (!isUpdatingFromSync && !progressSlider.matches(':active')) {
+            if (!isUpdatingFromSync && document.activeElement !== progressSlider) {
                 progressSlider.value = audioPlayer.currentTime || 0;
                 const currentTime = formatTime(audioPlayer.currentTime || 0);
                 progressSlider.previousElementSibling.textContent = currentTime;
@@ -645,13 +887,13 @@
         }
 
         function onTrackEnd() {
-            if (isHost) {
+            if (isHost && playlist.length > 1) {
                 nextTrack();
             }
         }
 
         function onAudioError(e) {
-            status('Audio error: Unable to load track');
+            status('Audio error: Unable to load track', 'error');
             console.error('Audio error:', e);
         }
 
@@ -688,10 +930,10 @@
         // Initialize when page loads
         document.addEventListener('DOMContentLoaded', initializePlayer);
 
-        // Cleanup on page unload
-        window.addEventListener('beforeunload', () => {
-            if (sessionListener) {
-                sessionListener();
+        // Handle Enter key in YouTube input
+        $('youtubeUrl').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                addTrackFromYoutube();
             }
         });
     </script>
