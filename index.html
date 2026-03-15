@@ -812,7 +812,7 @@
     window.onYouTubeIframeAPIReady = function () {
         ytPlayer = new YT.Player('player', {
             height: '300', width: '100%',
-            playerVars: { autoplay: 0, controls: 0, disablekb: 1, modestbranding: 1, rel: 0 },
+            playerVars: { autoplay: 0, controls: 0, disablekb: 1, modestbranding: 1, rel: 0, playsinline: 1 },
             events: { onReady: onPlayerReady, onStateChange: onPlayerStateChange, onError: onPlayerError }
         });
     };
@@ -838,7 +838,15 @@
     }
 
     function onPlayerError(event) {
-        setStatus('YouTube player error (code ' + event.data + '). The video may be restricted or unavailable.', 'error');
+        const errorMessages = {
+            2:   'The video ID is invalid. Please check the URL and try again.',
+            5:   'The video cannot be played in an HTML5 player.',
+            100: 'The video was not found (it may have been removed or made private).',
+            101: 'The video owner does not allow it to be played in embedded players.',
+            150: 'The video owner does not allow it to be played in embedded players.'
+        };
+        const detail = errorMessages[event.data] || 'The video may be restricted or unavailable.';
+        setStatus('YouTube player error (code ' + event.data + '). ' + detail, 'error');
     }
 
     // ══════════════════════════════════════════════════════════════════
@@ -998,7 +1006,9 @@
                 playlist = remotePlaylist;
                 updatePlaylistUI();
             }
-            if (data.currentTrack !== currentTrackIndex && playlist.length > 0) {
+            const playerState = ytPlayer ? ytPlayer.getPlayerState() : -1;
+            const noVideoLoaded = playerState === -1; // YT.PlayerState.UNSTARTED — player is empty
+            if ((data.currentTrack !== currentTrackIndex || noVideoLoaded) && playlist.length > 0) {
                 currentTrackIndex = data.currentTrack;
                 loadTrack(currentTrackIndex, false);
                 await sleep(500);
