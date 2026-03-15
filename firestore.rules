@@ -1,0 +1,35 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    match /sessions/{sessionId} {
+      // Any authenticated user can read a session (to join it)
+      allow read: if request.auth != null;
+
+      // Any authenticated user can create a session they own
+      allow create: if request.auth != null
+                    && request.resource.data.ownerId == request.auth.uid;
+
+      // Only the session owner (host) can update or delete the session
+      allow update: if request.auth != null
+                    && resource.data.ownerId == request.auth.uid;
+      allow delete: if request.auth != null
+                    && resource.data.ownerId == request.auth.uid;
+
+      // Participants sub-collection: any authenticated user can read;
+      // each user may only write their own presence document
+      match /participants/{userId} {
+        allow read: if request.auth != null;
+        allow write: if request.auth != null && request.auth.uid == userId;
+      }
+
+      // Signals sub-collection used for WebRTC signalling:
+      // only authenticated participants of this specific session may read and write
+      match /signals/{signalId} {
+        allow read, write: if request.auth != null
+                           && exists(/databases/$(database)/documents/sessions/$(sessionId)/participants/$(request.auth.uid));
+      }
+    }
+
+  }
+}
