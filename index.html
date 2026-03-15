@@ -872,10 +872,17 @@
             const playerState = ytPlayer ? ytPlayer.getPlayerState() : -1;
             const noVideoLoaded = playerState === -1; // YT.PlayerState.UNSTARTED — player is empty
             if ((data.currentTrack !== currentTrackIndex || noVideoLoaded) && playlist.length > 0) {
-                currentTrackIndex = data.currentTrack;
-                loadTrack(currentTrackIndex, false);
+                // Clamp to a valid index in case of a Firestore race where currentTrack and
+                // playlist arrive in separate writes (faster heartbeat increases this window).
+                const trackIndex = (data.currentTrack >= 0 && data.currentTrack < playlist.length)
+                    ? data.currentTrack : 0;
+                currentTrackIndex = trackIndex;
+                loadTrack(trackIndex, false);
                 await sleep(500);
             }
+            // If the player still has no video loaded (empty playlist, out-of-bounds track, or
+            // loadVideoById hasn't been called yet), skip all playback commands to avoid YT error 2.
+            if (!playlist.length || (ytPlayer && ytPlayer.getPlayerState() === -1)) return;
             if (!isHost && data.volume !== undefined) {
                 const v = data.volume;
                 $('volumeSlider').value = v;
@@ -946,6 +953,7 @@
         if (index < 0 || index >= playlist.length || !playerReady) return;
         currentTrackIndex = index;
         const track = playlist[index];
+        if (!track || !track.videoId) return;  // guard against missing/empty videoId → YT error code 2
         ytPlayer.loadVideoById(track.videoId);
         $('currentTrackTitle').textContent = track.title;
         $('trackDetails').textContent = track.artist + '  \u00b7  ' + track.duration;
