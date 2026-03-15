@@ -1,1124 +1,1293 @@
- <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AuraSync Music Player</title>
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <!-- Firebase SDKs loaded BEFORE the application script -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <!-- YouTube IFrame API at top level (NEVER nest inside another script block) -->
+    <script src="https://www.youtube.com/iframe_api"></script>
     <style>
+        *, *::before, *::after { box-sizing: border-box; }
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            max-width: 1000px;
-            margin: 0 auto;
-            padding: 20px;
+            max-width: 1100px; margin: 0 auto; padding: 20px;
             background: linear-gradient(135deg, #1a1a2e, #16213e);
-            color: white;
-            min-height: 100vh;
-            position: relative;
+            color: white; min-height: 100vh;
         }
-        
-        .header {
-            text-align: center;
-            margin-bottom: 30px;
-            padding-top: 20px;
-        }
-        
+        /* ── Header ── */
+        .header { text-align: center; margin-bottom: 30px; padding-top: 20px; }
         .header h1 {
             background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            font-size: 2.5em;
-            margin: 0;
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            background-clip: text; font-size: 2.5em; margin: 0;
         }
-        
-        .player-container {
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(10px);
-            padding: 25px;
-            border-radius: 15px;
-            margin-bottom: 25px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
+        .header p { color: rgba(255,255,255,0.6); margin: 6px 0 0; }
+        /* ── Cards ── */
+        .card {
+            background: rgba(255,255,255,0.08); backdrop-filter: blur(10px);
+            padding: 20px 25px; border-radius: 15px; margin-bottom: 22px;
+            border: 1px solid rgba(255,255,255,0.1);
         }
-        
-        .controls {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 15px;
-            margin-bottom: 20px;
-        }
-        
-        .control-btn {
-            background: linear-gradient(145deg, #4a4a4a, #2a2a2a);
-            border: none;
-            color: white;
-            padding: 15px;
-            border-radius: 50%;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
-        }
-        
-        .control-btn:hover:not(:disabled) {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
-            background: linear-gradient(145deg, #5a5a5a, #3a3a3a);
-        }
-        
-        .control-btn:disabled {
-            background: #333;
-            cursor: not-allowed;
-            opacity: 0.5;
-            transform: none;
-        }
-        
-        .control-btn .material-icons {
-            font-size: 24px;
-        }
-        
-        .play-btn {
-            padding: 20px !important;
-        }
-        
-        .play-btn .material-icons {
-            font-size: 32px !important;
-        }
-        
-        .slider-container {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            margin-bottom: 15px;
-        }
-        
-        .slider {
-            flex: 1;
-            height: 6px;
-            background: rgba(255, 255, 255, 0.2);
-            border-radius: 3px;
-            outline: none;
-            -webkit-appearance: none;
-            cursor: pointer;
-        }
-        
-        .slider::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            width: 20px;
-            height: 20px;
-            background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
-            border-radius: 50%;
-            cursor: pointer;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
-        }
-        
-        .slider::-moz-range-thumb {
-            width: 20px;
-            height: 20px;
-            background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
-            border-radius: 50%;
-            cursor: pointer;
-            border: none;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
-        }
-        
-        .volume-slider {
-            width: 120px;
-        }
-        
+        .card h3 { margin: 0 0 14px; font-size: 1.05em; }
+        /* ── Status bar ── */
         #status {
-            background: rgba(0, 0, 0, 0.3);
-            padding: 15px;
-            border-radius: 10px;
-            margin-bottom: 25px;
-            text-align: center;
-            backdrop-filter: blur(5px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(0,0,0,0.3); padding: 12px 18px; border-radius: 10px;
+            margin-bottom: 18px; text-align: center; border: 1px solid rgba(255,255,255,0.1);
+            font-size: .93em; transition: all .3s;
         }
-        
-        .session-controls {
-            display: grid;
-            grid-template-columns: 2fr 1fr 1fr 1fr;
-            gap: 15px;
-            margin-bottom: 25px;
-            align-items: center;
-        }
-        
-        @media (max-width: 768px) {
-            .session-controls {
-                grid-template-columns: 1fr;
-            }
-        }
-        
-        .session-controls input {
-            padding: 12px 16px;
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            background: rgba(255, 255, 255, 0.1);
-            color: white;
-            border-radius: 8px;
-            backdrop-filter: blur(5px);
-        }
-        
-        .session-controls input::placeholder {
-            color: rgba(255, 255, 255, 0.6);
-        }
-        
-        .session-controls button {
-            padding: 12px 16px;
-            border: none;
-            background: linear-gradient(45deg, #007bff, #0056b3);
-            color: white;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            font-weight: 500;
-        }
-        
-        .session-controls button:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 4px 15px rgba(0, 123, 255, 0.3);
-        }
-        
-        .track-info {
-            background: rgba(255, 255, 255, 0.1);
-            padding: 20px;
-            border-radius: 12px;
-            margin-bottom: 20px;
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-        
-        .add-track-section {
-            background: rgba(255, 255, 255, 0.1);
-            padding: 20px;
-            border-radius: 12px;
-            margin-bottom: 20px;
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-        
-        .add-track-form {
-            display: flex;
-            gap: 15px;
-            margin-bottom: 15px;
-            flex-wrap: wrap;
-        }
-        
-        .add-track-form input {
-            flex: 1;
-            padding: 12px 16px;
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            background: rgba(255, 255, 255, 0.1);
-            color: white;
-            border-radius: 8px;
-            min-width: 250px;
-            backdrop-filter: blur(5px);
-        }
-        
-        .add-track-form input::placeholder {
-            color: rgba(255, 255, 255, 0.6);
-        }
-        
-        .add-track-form button {
-            padding: 12px 20px;
-            border: none;
-            background: linear-gradient(45deg, #28a745, #20c997);
-            color: white;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            font-weight: 500;
-        }
-        
-        .add-track-form button:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
-        }
-        
-        .playlist {
-            background: rgba(255, 255, 255, 0.1);
-            padding: 20px;
-            border-radius: 12px;
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-        
-        .track-item {
-            padding: 15px;
-            margin: 10px 0;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 10px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            backdrop-filter: blur(5px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-        
-        .track-item:hover {
-            background: rgba(255, 255, 255, 0.2);
-            transform: translateX(5px);
-        }
-        
-        .track-item.active {
-            background: linear-gradient(45deg, rgba(255, 107, 107, 0.3), rgba(78, 205, 196, 0.3));
-            border-color: rgba(255, 107, 107, 0.5);
-        }
-        
-        .track-item.disabled {
-            cursor: not-allowed;
-            opacity: 0.6;
-        }
-        
-        .track-info-text {
-            flex: 1;
-        }
-        
-        .track-duration {
-            color: #aaa;
-            font-size: 12px;
-            margin-left: 15px;
-        }
-        
-        .remove-track {
-            background: linear-gradient(45deg, #dc3545, #c82333);
-            border: none;
-            color: white;
-            padding: 6px 10px;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 12px;
-            margin-left: 15px;
-            transition: all 0.3s ease;
-        }
-        
-        .remove-track:hover {
-            transform: scale(1.1);
-        }
-        
-        .volume-icon {
-            display: flex;
-            align-items: center;
-        }
-        
-        .time-display {
-            min-width: 50px;
-            text-align: center;
-            font-size: 14px;
-            font-weight: 500;
-        }
-        
-        .loading {
-            opacity: 0.7;
-        }
-        
-        .error {
-            color: #ff6b6b;
-        }
-        
-        .success {
-            color: #4ecdc4;
-        }
-        
-        .youtube-preview {
-            background: rgba(255, 255, 255, 0.1);
-            padding: 15px;
-            border-radius: 8px;
-            margin: 15px 0;
-            display: none;
-            backdrop-filter: blur(5px);
-        }
-        
-        .youtube-preview img {
-            width: 80px;
-            height: 60px;
-            border-radius: 5px;
-            margin-right: 15px;
-        }
-        
-        .youtube-preview-content {
-            display: flex;
-            align-items: center;
-        }
-        
-        .youtube-preview-info {
-            flex: 1;
-        }
-        
-        #player {
-            width: 100%;
-            height: 300px;
-            border-radius: 10px;
-            margin-bottom: 20px;
-        }
-        
-        .current-session {
-            font-weight: 500;
-            color: #4ecdc4;
-        }
-        
+        #status.error   { color: #ff6b6b; border-color: rgba(255,107,107,0.35); }
+        #status.success { color: #4ecdc4; border-color: rgba(78,205,196,0.35); }
+        #status.loading { color: #ffd166; border-color: rgba(255,209,102,0.35); }
+        /* ── Connection badge ── */
         .connection-status {
-            position: fixed;
-            top: 10px;
-            right: 10px;
-            padding: 8px 12px;
-            border-radius: 20px;
-            font-size: 12px;
-            backdrop-filter: blur(10px);
-            z-index: 1000;
+            position: fixed; top: 10px; right: 10px; padding: 7px 12px;
+            border-radius: 20px; font-size: 12px; backdrop-filter: blur(10px); z-index: 1000;
         }
-        
-        .connected {
-            background: rgba(78, 205, 196, 0.2);
-            color: #4ecdc4;
-            border: 1px solid rgba(78, 205, 196, 0.3);
+        .connected    { background: rgba(78,205,196,0.2);  color: #4ecdc4; border: 1px solid rgba(78,205,196,0.3); }
+        .disconnected { background: rgba(255,107,107,0.2); color: #ff6b6b; border: 1px solid rgba(255,107,107,0.3); }
+        .auth-error   { background: rgba(255,107,107,0.2); color: #ff6b6b; border: 1px solid rgba(255,107,107,0.3); }
+        /* ── Session controls ── */
+        .session-controls {
+            display: grid; grid-template-columns: 2fr 1fr 1fr 1fr;
+            gap: 12px; margin-bottom: 10px; align-items: center;
         }
-        
-        .disconnected {
-            background: rgba(255, 107, 107, 0.2);
-            color: #ff6b6b;
-            border: 1px solid rgba(255, 107, 107, 0.3);
+        @media (max-width: 768px) { .session-controls { grid-template-columns: 1fr; } }
+        .session-controls input, .session-controls button { padding: 11px 14px; border-radius: 8px; font-size: .88em; }
+        .session-controls input {
+            border: 1px solid rgba(255,255,255,0.3);
+            background: rgba(255,255,255,0.08); color: white;
         }
-        
-        .auth-error {
-            background: rgba(255, 107, 107, 0.2);
-            color: #ff6b6b;
-            border: 1px solid rgba(255, 107, 107, 0.3);
+        .session-controls input::placeholder { color: rgba(255,255,255,0.5); }
+        .session-controls button { border: none; color: white; cursor: pointer; transition: all .25s; font-weight: 500; }
+        .session-controls button:nth-child(2) { background: linear-gradient(45deg,#007bff,#0056b3); }
+        .session-controls button:nth-child(3) { background: linear-gradient(45deg,#28a745,#20c997); }
+        .session-controls button:nth-child(4) { background: linear-gradient(45deg,#dc3545,#c82333); }
+        .session-controls button:hover { transform: translateY(-1px); box-shadow: 0 4px 15px rgba(0,0,0,.3); }
+        .current-session { font-weight: 500; color: #4ecdc4; margin-bottom: 18px; font-size: .88em; }
+        /* ── Player ── */
+        #player { width: 100%; height: 300px; border-radius: 10px; margin-bottom: 18px; }
+        /* ── Transport controls ── */
+        .controls { display: flex; align-items: center; justify-content: center; gap: 14px; margin-bottom: 16px; }
+        .control-btn {
+            background: linear-gradient(145deg,#4a4a4a,#2a2a2a); border: none; color: white;
+            padding: 14px; border-radius: 50%; cursor: pointer; display: flex;
+            align-items: center; justify-content: center; transition: all .3s; box-shadow: 0 4px 15px rgba(0,0,0,.3);
         }
+        .control-btn:hover:not(:disabled) { transform: translateY(-2px); background: linear-gradient(145deg,#5a5a5a,#3a3a3a); }
+        .control-btn:disabled { opacity: .4; cursor: not-allowed; transform: none; }
+        .control-btn .material-icons { font-size: 24px; }
+        .play-btn { padding: 18px !important; }
+        .play-btn .material-icons { font-size: 30px !important; }
+        /* ── Sliders ── */
+        .slider-container { display: flex; align-items: center; gap: 14px; margin-bottom: 10px; }
+        .slider {
+            flex: 1; height: 6px; background: rgba(255,255,255,0.15);
+            border-radius: 3px; outline: none; -webkit-appearance: none; cursor: pointer;
+        }
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none; width: 18px; height: 18px;
+            background: linear-gradient(45deg,#ff6b6b,#4ecdc4); border-radius: 50%; cursor: pointer;
+        }
+        .slider::-moz-range-thumb {
+            width: 18px; height: 18px; background: linear-gradient(45deg,#ff6b6b,#4ecdc4);
+            border-radius: 50%; border: none; cursor: pointer;
+        }
+        .volume-slider { max-width: 130px; }
+        .time-display { min-width: 44px; text-align: center; font-size: 13px; font-weight: 500; }
+        /* ── Track info ── */
+        .track-info-card h3 { margin: 0 0 6px; }
+        .track-info-card p  { margin: 0; color: rgba(255,255,255,.6); font-size: .88em; }
+        /* ── Add track ── */
+        .add-track-form { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
+        .add-track-form input {
+            flex: 1; padding: 11px 14px; min-width: 240px;
+            border: 1px solid rgba(255,255,255,0.3);
+            background: rgba(255,255,255,0.08); color: white; border-radius: 8px;
+        }
+        .add-track-form input::placeholder { color: rgba(255,255,255,0.5); }
+        .add-track-form button {
+            padding: 11px 20px; border: none; background: linear-gradient(45deg,#28a745,#20c997);
+            color: white; border-radius: 8px; cursor: pointer; font-weight: 500; transition: all .25s;
+        }
+        .add-track-form button:hover { transform: translateY(-1px); }
+        /* ── Playlist ── */
+        .track-item {
+            padding: 13px 16px; margin: 8px 0; background: rgba(255,255,255,0.07);
+            border-radius: 10px; cursor: pointer; transition: all .25s; display: flex;
+            justify-content: space-between; align-items: center; border: 1px solid rgba(255,255,255,0.1);
+        }
+        .track-item:hover { background: rgba(255,255,255,0.15); transform: translateX(4px); }
+        .track-item.active {
+            background: linear-gradient(45deg,rgba(255,107,107,.2),rgba(78,205,196,.2));
+            border-color: rgba(255,107,107,.4);
+        }
+        .track-item.disabled { cursor: not-allowed; opacity: .6; }
+        .track-item-info { flex: 1; }
+        .track-item-info strong { display: block; font-size: .93em; }
+        .track-item-info small  { color: rgba(255,255,255,.5); font-size: .78em; }
+        .track-duration { color: #aaa; font-size: 12px; margin-right: 10px; white-space: nowrap; }
+        .remove-track {
+            background: linear-gradient(45deg,#dc3545,#c82333); border: none; color: white;
+            padding: 5px 9px; border-radius: 5px; cursor: pointer; font-size: 12px; transition: all .25s;
+        }
+        .remove-track:hover { transform: scale(1.1); }
+        /* ── Surround Sound ── */
+        .surround-mode-row { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
+        .mode-btn {
+            padding: 8px 16px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.25);
+            background: rgba(255,255,255,0.07); color: white; cursor: pointer; transition: all .25s; font-size: .83em;
+        }
+        .mode-btn.active { background: linear-gradient(45deg,#ff6b6b,#4ecdc4); border-color: transparent; font-weight: 600; }
+        .mode-btn:hover:not(.active) { background: rgba(255,255,255,0.14); }
+        /* Speaker layout */
+        .speaker-layout {
+            position: relative; width: 100%; height: 220px; margin: 14px 0;
+        }
+        .speaker-node {
+            position: absolute; transform: translate(-50%,-50%);
+            display: flex; flex-direction: column; align-items: center; gap: 4px;
+        }
+        .speaker-icon {
+            width: 48px; height: 48px; border-radius: 50%;
+            background: rgba(255,255,255,0.08); border: 2px solid rgba(255,255,255,0.22);
+            display: flex; align-items: center; justify-content: center; font-size: 20px; transition: all .25s;
+        }
+        .speaker-icon.has-device { border-color: #4ecdc4; background: rgba(78,205,196,0.14); }
+        .speaker-label { font-size: 9.5px; color: rgba(255,255,255,.65); text-align: center; max-width: 70px; line-height: 1.3; }
+        .listener-icon {
+            position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%,-50%); font-size: 28px; opacity: .55;
+        }
+        /* Channel grid */
+        .channel-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 12px; }
+        .channel-card {
+            background: rgba(255,255,255,0.06); border-radius: 10px;
+            padding: 12px 14px; border: 1px solid rgba(255,255,255,0.1);
+        }
+        .channel-card label { display: block; font-size: .78em; color: rgba(255,255,255,.55); margin-bottom: 6px; }
+        .channel-card select {
+            width: 100%; padding: 7px 9px; border-radius: 6px;
+            background: rgba(255,255,255,0.09); color: white;
+            border: 1px solid rgba(255,255,255,0.18); font-size: .83em; cursor: pointer;
+        }
+        .channel-card select option { background: #1a1a2e; }
+        /* Role badge */
+        .my-role-badge {
+            display: inline-block; padding: 4px 10px; border-radius: 12px;
+            background: linear-gradient(45deg,#ff6b6b,#4ecdc4); font-size: .8em; font-weight: 600;
+        }
+        .no-role-msg { color: rgba(255,255,255,.45); font-size: .83em; }
+        /* Participants */
+        .participant-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+        .participant-chip {
+            display: inline-flex; align-items: center; gap: 5px; padding: 4px 11px; border-radius: 14px;
+            background: rgba(255,255,255,0.09); border: 1px solid rgba(255,255,255,0.14); font-size: .8em;
+        }
+        .participant-chip .dot { width: 7px; height: 7px; border-radius: 50%; background: #4ecdc4; }
+        .participant-chip .role-tag { font-size: .73em; color: #ffd166; font-weight: 600; }
+        /* ── Audio Sharing ── */
+        .share-controls { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; }
+        .btn-primary {
+            padding: 10px 18px; border: none; background: linear-gradient(45deg,#007bff,#0056b3);
+            color: white; border-radius: 8px; cursor: pointer; font-weight: 500; transition: all .25s;
+            display: inline-flex; align-items: center; gap: 5px;
+        }
+        .btn-primary:hover:not(:disabled) { transform: translateY(-1px); }
+        .btn-primary:disabled { opacity: .45; cursor: not-allowed; }
+        .btn-danger {
+            padding: 10px 18px; border: none; background: linear-gradient(45deg,#dc3545,#c82333);
+            color: white; border-radius: 8px; cursor: pointer; font-weight: 500; transition: all .25s;
+            display: inline-flex; align-items: center; gap: 5px;
+        }
+        .btn-danger:hover { transform: translateY(-1px); }
+        .share-status {
+            padding: 7px 13px; border-radius: 8px; font-size: .83em;
+            background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+        }
+        .share-status.active-share { background: rgba(78,205,196,0.11); border-color: rgba(78,205,196,0.3); color: #4ecdc4; }
+        .share-status.receiving    { background: rgba(107,186,255,0.11); border-color: rgba(107,186,255,0.3); color: #6bbfff; }
+        /* Remote audio items */
+        .remote-audio-list { margin-top: 10px; }
+        .remote-audio-item {
+            display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-radius: 8px;
+            background: rgba(255,255,255,0.06); margin-bottom: 8px; border: 1px solid rgba(255,255,255,0.1);
+        }
+        .remote-audio-item .material-icons { color: #4ecdc4; }
+        .remote-audio-item select {
+            margin-left: auto; padding: 5px 8px; border-radius: 6px;
+            background: rgba(255,255,255,0.09); color: white;
+            border: 1px solid rgba(255,255,255,0.18); font-size: .8em; cursor: pointer;
+        }
+        .remote-audio-item select option { background: #1a1a2e; }
+        /* ── Virtual Driver ── */
+        .vad-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+        @media (max-width: 600px) { .vad-grid { grid-template-columns: 1fr; } }
+        .vad-step {
+            background: rgba(255,255,255,0.06); border-radius: 10px;
+            padding: 14px 16px; border: 1px solid rgba(255,255,255,0.1);
+        }
+        .step-num {
+            width: 26px; height: 26px; border-radius: 50%;
+            background: linear-gradient(45deg,#ff6b6b,#4ecdc4);
+            display: inline-flex; align-items: center; justify-content: center;
+            font-size: .78em; font-weight: 700; margin-bottom: 8px;
+        }
+        .vad-step p { margin: 0; font-size: .83em; color: rgba(255,255,255,.72); line-height: 1.55; }
+        .vad-download-row { display: flex; gap: 10px; flex-wrap: wrap; }
+        .btn-outline {
+            padding: 9px 17px; border: 1px solid rgba(255,255,255,0.28);
+            background: transparent; color: white; border-radius: 8px; cursor: pointer; font-size: .83em; transition: all .25s;
+        }
+        .btn-outline:hover { background: rgba(255,255,255,0.1); }
     </style>
 </head>
 <body>
-    <div class="connection-status disconnected" id="connectionStatus">
-        ● Disconnected
-    </div>
-    
+
+    <!-- Connection badge -->
+    <div class="connection-status disconnected" id="connectionStatus">&#9679; Disconnected</div>
+
+    <!-- Header -->
     <div class="header">
-        <h1>🎵 AuraSync</h1>
+        <h1>&#127925; AuraSync</h1>
+        <p>Synchronized Multi-Device Music &amp; Surround Sound</p>
     </div>
-    
-    <div id="status">Initializing player...</div>
-    
+
+    <!-- Status bar -->
+    <div id="status">Initializing player&#8230;</div>
+
+    <!-- Session controls -->
     <div class="session-controls">
-        <input type="text" id="sessionId" placeholder="Enter Session ID">
+        <input type="text" id="sessionId" placeholder="Enter or generate a Session ID">
         <button onclick="createSession()">Create Session</button>
         <button onclick="joinSession()">Join Session</button>
         <button onclick="leaveSession()">Leave Session</button>
     </div>
-    
     <div class="current-session" id="currentSession"></div>
-    
-    <div class="player-container">
+
+    <!-- YouTube Player + transport controls -->
+    <div class="card">
         <div id="player"></div>
-        
         <div class="controls">
-            <button class="control-btn" onclick="previousTrack()" disabled>
+            <button class="control-btn" id="prevBtn" onclick="previousTrack()" disabled>
                 <span class="material-icons">skip_previous</span>
             </button>
             <button class="control-btn play-btn" id="playPauseBtn" onclick="togglePlayPause()" disabled>
                 <span class="material-icons">play_arrow</span>
             </button>
-            <button class="control-btn" onclick="nextTrack()" disabled>
+            <button class="control-btn" id="nextBtn" onclick="nextTrack()" disabled>
                 <span class="material-icons">skip_next</span>
             </button>
         </div>
-        
         <div class="slider-container">
             <span class="time-display" id="currentTime">0:00</span>
             <input type="range" class="slider" id="progressSlider" min="0" max="100" value="0" disabled>
             <span class="time-display" id="duration">0:00</span>
         </div>
-        
         <div class="slider-container">
-            <span class="volume-icon material-icons">volume_up</span>
+            <span class="material-icons" style="font-size:20px;opacity:.65">volume_up</span>
             <input type="range" class="slider volume-slider" id="volumeSlider" min="0" max="100" value="50" disabled>
-            <span id="volumePercent">50%</span>
+            <span id="volumePercent" style="min-width:36px;text-align:right;font-size:13px">50%</span>
         </div>
     </div>
-    
-    <div class="track-info">
-        <h3 id="currentTrack">No track selected</h3>
+
+    <!-- Current track info -->
+    <div class="card track-info-card">
+        <h3 id="currentTrackTitle">No track selected</h3>
         <p id="trackDetails">Create or join a session to start playing music</p>
     </div>
-    
-    <div class="add-track-section">
-        <h3>Add Music</h3>
+
+    <!-- Add track -->
+    <div class="card">
+        <h3>&#10133; Add Music from YouTube</h3>
         <div class="add-track-form">
-            <input type="text" id="youtubeUrl" placeholder="Enter YouTube URL (e.g., https://www.youtube.com/watch?v=dQw4w9WgXcQ)">
+            <input type="text" id="youtubeUrl"
+                   placeholder="Paste a YouTube URL &#8212; e.g. https://www.youtube.com/watch?v=dQw4w9WgXcQ">
             <button onclick="addTrackFromYoutube()">Add Track</button>
         </div>
-        <div id="youtubePreview" class="youtube-preview"></div>
-        <p><small>Paste a YouTube URL to add it to the playlist. The video will be played using YouTube's embedded player.</small></p>
+        <p style="margin:0;color:rgba(255,255,255,.45);font-size:.8em">
+            Supports youtube.com/watch?v=&#8230; and youtu.be/&#8230; links.
+            Real video titles are fetched automatically via oEmbed.
+        </p>
     </div>
-    
-    <div class="playlist">
-        <h3>Playlist <span id="playlistCount">(0 tracks)</span></h3>
+
+    <!-- ══ Surround Sound Configuration ══ -->
+    <div class="card" id="surroundSection">
+        <h3>&#128266; Surround Sound Configuration</h3>
+
+        <div id="myRoleDisplay">
+            <span class="no-role-msg">Join a session to be assigned a speaker channel role.</span>
+        </div>
+
+        <!-- Mode picker (host only) -->
+        <div id="surroundModeRow" style="display:none">
+            <p style="margin:0 0 9px;font-size:.82em;color:rgba(255,255,255,.55)">
+                Select surround mode (host only):
+            </p>
+            <div class="surround-mode-row" id="surroundModeBtns"></div>
+        </div>
+
+        <!-- Visual speaker layout -->
+        <div class="speaker-layout" id="speakerLayout">
+            <div class="listener-icon">&#129489;</div>
+        </div>
+
+        <!-- Channel to device/participant assignment (host) -->
+        <div id="channelAssignSection" style="display:none">
+            <p style="margin:0 0 9px;font-size:.82em;color:rgba(255,255,255,.55)">
+                Assign each channel to a session participant:
+            </p>
+            <div class="channel-grid" id="channelGrid"></div>
+        </div>
+
+        <!-- Participants -->
+        <div id="participantSection" style="display:none">
+            <p style="margin:14px 0 7px;font-size:.82em;color:rgba(255,255,255,.55)">Active participants:</p>
+            <div class="participant-list" id="participantList"></div>
+        </div>
+    </div>
+
+    <!-- ══ Local Audio Sharing ══ -->
+    <div class="card" id="audioShareSection">
+        <h3>&#128225; Share Local Audio to Other Devices</h3>
+        <p style="margin:0 0 13px;font-size:.83em;color:rgba(255,255,255,.55)">
+            Capture your system audio or microphone and stream it in real-time to every device
+            in the session via WebRTC. Each receiving device can pick which speaker output plays the stream.
+        </p>
+
+        <!-- Host sharing controls -->
+        <div id="hostShareControls">
+            <div class="share-controls">
+                <button class="btn-primary" id="startShareBtn" onclick="startLocalAudioShare()" disabled>
+                    <span class="material-icons" style="font-size:16px">mic</span> Share Audio
+                </button>
+                <button class="btn-danger" id="stopShareBtn" onclick="stopLocalAudioShare()" style="display:none">
+                    <span class="material-icons" style="font-size:16px">stop</span> Stop Sharing
+                </button>
+                <span class="share-status" id="hostShareStatus">Not sharing</span>
+            </div>
+            <p style="margin:0;font-size:.76em;color:rgba(255,255,255,.4)">
+                On desktop: choose &#8220;Share tab audio&#8221; or &#8220;Share entire screen (with audio)&#8221; when prompted.
+                On mobile: microphone capture is used.
+            </p>
+        </div>
+
+        <!-- Received streams (guest) -->
+        <div id="remoteAudioSection" style="display:none;margin-top:14px">
+            <p style="margin:0 0 7px;font-size:.82em;color:rgba(255,255,255,.55)">Received audio streams:</p>
+            <div class="remote-audio-list" id="remoteAudioList">
+                <p style="color:rgba(255,255,255,.38);font-size:.83em">No streams received yet.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══ Virtual Audio Driver ══ -->
+    <div class="card">
+        <h3>&#128187; AuraSync Virtual Audio Driver</h3>
+        <p style="margin:0 0 14px;font-size:.83em;color:rgba(255,255,255,.55)">
+            Install the AuraSync Virtual Audio Driver to make any Windows or macOS machine appear as an audio
+            output device. Audio routed to this virtual device is automatically streamed to all
+            devices in your session &#8212; turning phones, tablets and laptops into a wireless surround system.
+        </p>
+        <div class="vad-grid">
+            <div class="vad-step">
+                <div class="step-num">1</div>
+                <p><strong>Download &amp; Install</strong><br>
+                   Download the installer for your OS and run it. No reboot required.</p>
+            </div>
+            <div class="vad-step">
+                <div class="step-num">2</div>
+                <p><strong>Set as Default Output</strong><br>
+                   In OS sound settings, set <em>&#8220;AuraSync Virtual Out&#8221;</em> as the default playback device.</p>
+            </div>
+            <div class="vad-step">
+                <div class="step-num">3</div>
+                <p><strong>Join an AuraSync Session</strong><br>
+                   Any audio played through the virtual device streams to your session automatically.</p>
+            </div>
+            <div class="vad-step">
+                <div class="step-num">4</div>
+                <p><strong>Assign Channels</strong><br>
+                   Use the Surround Sound panel to assign each device to a speaker channel.</p>
+            </div>
+        </div>
+        <div class="vad-download-row">
+            <button class="btn-outline" onclick="downloadDriver('windows')">&#127959; Windows (.exe)</button>
+            <button class="btn-outline" onclick="downloadDriver('mac')">&#127822; macOS (.pkg)</button>
+            <button class="btn-outline" onclick="downloadDriver('linux')">&#128039; Linux (.deb)</button>
+        </div>
+        <p style="margin:11px 0 0;font-size:.74em;color:rgba(255,255,255,.3)">
+            Alternatively: use VB-Cable (Windows/Mac) or PulseAudio null-sink (Linux) and
+            click &#8220;Share Audio&#8221; in the panel above.
+        </p>
+    </div>
+
+    <!-- Playlist -->
+    <div class="card">
+        <h3>&#127925; Playlist <span id="playlistCount" style="font-weight:400;opacity:.65">(0 tracks)</span></h3>
         <div id="playlistContainer">
-            <p style="color: #888; text-align: center; padding: 20px;">
-                No tracks in playlist. Add some music above to get started!
+            <p style="color:rgba(255,255,255,.38);text-align:center;padding:20px 0">
+                No tracks yet &#8212; paste a YouTube URL above to get started!
             </p>
         </div>
     </div>
 
-    <!-- Firebase SDKs -->
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
-
+    <!-- ════════════════════════════════════════════════════════════════
+         APPLICATION SCRIPT
+         All JavaScript lives in one top-level script block.
+         External scripts (Firebase, YouTube API) are loaded in <head>.
+    ═══════════════════════════════════════════════════════════════════ -->
     <script>
-        // Firebase configuration
-        const firebaseConfig = {
-            apiKey: "AIzaSyAvdsISdxERqIrZbyecvwKsf2V7lFuPWkc",
-            authDomain: "zync-2baf2.firebaseapp.com",
-            projectId: "zync-2baf2",
-            storageBucket: "zync-2baf2.appspot.com",
-            messagingSenderId: "388386446447",
-            appId: "1:388386446447:web:9659826f61a4aaec01019a"
-        };
+    // ══════════════════════════════════════════════════════════════════
+    // 1.  FIREBASE INIT
+    // ══════════════════════════════════════════════════════════════════
+    const firebaseConfig = {
+        apiKey:            'AIzaSyAvdsISdxERqIrZbyecvwKsf2V7lFuPWkc',
+        authDomain:        'zync-2baf2.firebaseapp.com',
+        projectId:         'zync-2baf2',
+        storageBucket:     'zync-2baf2.appspot.com',
+        messagingSenderId: '388386446447',
+        appId:             '1:388386446447:web:9659826f61a4aaec01019a'
+    };
+    const app  = firebase.initializeApp(firebaseConfig);
+    const db   = firebase.firestore();
+    const auth = firebase.auth();
 
-        // Initialize Firebase
-        const app = firebase.initializeApp(firebaseConfig);
-        const db = firebase.firestore();
-        const auth = firebase.auth();
-        
-        // Make Firebase available globally
-        window.db = db;
-        window.auth = auth;
-        window.connectionStatus = document.getElementById('connectionStatus');
-        
-        // Anonymous authentication
-        auth.signInAnonymously()
-            .then(() => {
-                window.connectionStatus.className = 'connection-status connected';
-                window.connectionStatus.textContent = '● Connected to Firebase';
-                console.log('Firebase initialized successfully');
-            })
-            .catch(error => {
-                window.connectionStatus.className = 'connection-status auth-error';
-                window.connectionStatus.textContent = '● Auth Error';
-                console.error('Authentication failed:', error);
-                status('Authentication failed: ' + error.message, 'error');
+    const connectionStatus = document.getElementById('connectionStatus');
+    auth.signInAnonymously()
+        .then(() => {
+            connectionStatus.className = 'connection-status connected';
+            connectionStatus.textContent = '\u25cf Connected';
+            myUserId = auth.currentUser.uid;
+        })
+        .catch(err => {
+            connectionStatus.className = 'connection-status auth-error';
+            connectionStatus.textContent = '\u25cf Auth Error';
+            setStatus('Authentication failed: ' + err.message, 'error');
+        });
+
+    // ══════════════════════════════════════════════════════════════════
+    // 2.  GLOBAL STATE
+    // ══════════════════════════════════════════════════════════════════
+    let myUserId           = null;
+    let myNickname         = 'Device\u00a0' + Math.random().toString(36).slice(2,5).toUpperCase();
+    let isHost             = false;
+    let currentSessionId   = null;
+    let sessionListener    = null;
+    let presenceListener   = null;
+    let rtcListener        = null;
+    let currentTrackIndex  = 0;
+    let isUpdatingFromSync = false;
+    let syncUpdateTimeout  = null;
+    let playlist           = [];
+    let ytPlayer           = null;
+    let playerReady        = false;
+    let syncInterval       = null;
+
+    // Surround
+    let surroundMode       = 'stereo';
+    let channelRoles       = {};   // { userId: channelName }
+    let myChannelRole      = null;
+    let audioOutputDevices = [];
+
+    // WebRTC
+    let localAudioStream   = null;
+    let peerConnections    = {};   // { peerId: RTCPeerConnection }
+    let remoteAudios       = {};   // { id: HTMLAudioElement }
+    let participants       = {};   // { userId: { nickname, joinedAt } }
+
+    const SURROUND_MODES = {
+        'stereo': [
+            { name: 'Left',         x: 22, y: 14 },
+            { name: 'Right',        x: 78, y: 14 }
+        ],
+        '2.1': [
+            { name: 'Left',         x: 20, y: 14 },
+            { name: 'Right',        x: 80, y: 14 },
+            { name: 'Subwoofer',    x: 50, y: 88 }
+        ],
+        '5.1': [
+            { name: 'Front Left',   x: 20, y: 13 },
+            { name: 'Front Center', x: 50, y: 8  },
+            { name: 'Front Right',  x: 80, y: 13 },
+            { name: 'Rear Left',    x: 14, y: 80 },
+            { name: 'Rear Right',   x: 86, y: 80 },
+            { name: 'Subwoofer',    x: 50, y: 92 }
+        ],
+        '7.1': [
+            { name: 'Front Left',   x: 20, y: 11 },
+            { name: 'Front Center', x: 50, y: 7  },
+            { name: 'Front Right',  x: 80, y: 11 },
+            { name: 'Side Left',    x: 6,  y: 50 },
+            { name: 'Side Right',   x: 94, y: 50 },
+            { name: 'Rear Left',    x: 20, y: 87 },
+            { name: 'Rear Right',   x: 80, y: 87 },
+            { name: 'Subwoofer',    x: 50, y: 93 }
+        ]
+    };
+
+    const $ = id => document.getElementById(id);
+
+    // ══════════════════════════════════════════════════════════════════
+    // 3.  YOUTUBE PLAYER CALLBACKS
+    // ══════════════════════════════════════════════════════════════════
+    window.onYouTubeIframeAPIReady = function () {
+        ytPlayer = new YT.Player('player', {
+            height: '300', width: '100%',
+            playerVars: { autoplay: 0, controls: 0, disablekb: 1, modestbranding: 1, rel: 0 },
+            events: { onReady: onPlayerReady, onStateChange: onPlayerStateChange, onError: onPlayerError }
+        });
+    };
+
+    function onPlayerReady() {
+        playerReady = true;
+        ytPlayer.setVolume(parseInt($('volumeSlider').value));
+        syncInterval = setInterval(updateProgress, 1000);
+        setStatus('YouTube player ready. Create or join a session to start.', 'success');
+    }
+
+    function onPlayerStateChange(event) {
+        if (isUpdatingFromSync) return;
+        if (event.data === YT.PlayerState.PLAYING) {
+            $('playPauseBtn').innerHTML = '<span class="material-icons">pause</span>';
+            if (isHost) updateSession({ isPlaying: true,  currentTime: ytPlayer.getCurrentTime(), lastUpdate: Date.now() });
+        } else if (event.data === YT.PlayerState.PAUSED) {
+            $('playPauseBtn').innerHTML = '<span class="material-icons">play_arrow</span>';
+            if (isHost) updateSession({ isPlaying: false, currentTime: ytPlayer.getCurrentTime(), lastUpdate: Date.now() });
+        } else if (event.data === YT.PlayerState.ENDED) {
+            if (isHost && playlist.length > 1) nextTrack();
+        }
+    }
+
+    function onPlayerError(event) {
+        setStatus('YouTube player error (code ' + event.data + '). The video may be restricted or unavailable.', 'error');
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    // 4.  STATUS HELPER
+    // ══════════════════════════════════════════════════════════════════
+    function setStatus(msg, type) {
+        const el = $('status');
+        el.textContent = msg;
+        el.className = type || '';
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    // 5.  SESSION MANAGEMENT
+    // ══════════════════════════════════════════════════════════════════
+    function generateSessionId() {
+        return Math.random().toString(36).slice(2, 8).toUpperCase();
+    }
+
+    async function ensureAuth() {
+        if (!auth.currentUser) await auth.signInAnonymously();
+        myUserId = auth.currentUser.uid;
+    }
+
+    async function createSession() {
+        await ensureAuth();
+        const sessionId = generateSessionId();
+        currentSessionId = sessionId;
+        isHost = true;
+        try {
+            await db.collection('sessions').doc(sessionId).set({
+                ownerId: myUserId, currentTrack: 0, isPlaying: false, currentTime: 0,
+                volume: 50, playlist: [], surroundMode: 'stereo', channelRoles: {},
+                audioShare: { active: false, hostId: null },
+                created: firebase.firestore.FieldValue.serverTimestamp(), lastUpdate: Date.now()
             });
+            $('sessionId').value = sessionId;
+            $('currentSession').textContent = 'Session: ' + sessionId + '  (Host)';
+            enableControls(true);
+            await registerPresence(sessionId);
+            startSessionListener(sessionId);
+            initSurroundUI();
+            setStatus('Session ' + sessionId + ' created! Share this ID with other devices.', 'success');
+        } catch (err) {
+            setStatus('Error creating session: ' + err.message, 'error');
+        }
+    }
 
-        // YouTube API
-        <script src="https://www.youtube.com/iframe_api"></script>
+    async function joinSession() {
+        await ensureAuth();
+        const sessionId = $('sessionId').value.trim().toUpperCase();
+        if (!sessionId) { setStatus('Enter a session ID first.', 'error'); return; }
+        try {
+            const snap = await db.collection('sessions').doc(sessionId).get();
+            if (!snap.exists) { setStatus('Session not found. Check the session ID.', 'error'); return; }
+            const data = snap.data();
+            currentSessionId = sessionId;
+            isHost = (data.ownerId === myUserId);
+            playlist     = data.playlist     || [];
+            surroundMode = data.surroundMode  || 'stereo';
+            channelRoles = data.channelRoles  || {};
+            $('currentSession').textContent = 'Session: ' + sessionId + '  (' + (isHost ? 'Host' : 'Guest') + ')';
+            updatePlaylistUI();
+            enableControls(isHost);
+            await registerPresence(sessionId);
+            startSessionListener(sessionId);
+            initSurroundUI();
+            updateMyRoleDisplay();
+            await syncWithSession(data);
+            setStatus('Joined session ' + sessionId, 'success');
+        } catch (err) {
+            setStatus('Error joining session: ' + err.message, 'error');
+        }
+    }
 
-        <script>
-            // Helper function for DOM selection
-            const $ = (id) => document.getElementById(id);
+    async function leaveSession() {
+        stopLocalAudioShare();
+        closeAllPeerConnections();
+        if (sessionListener)  { sessionListener();  sessionListener  = null; }
+        if (presenceListener) { presenceListener(); presenceListener = null; }
+        if (rtcListener)      { rtcListener();       rtcListener      = null; }
+        if (currentSessionId && myUserId) {
+            try { await db.collection('sessions').doc(currentSessionId)
+                          .collection('participants').doc(myUserId).delete(); } catch (_) {}
+        }
+        currentSessionId = null; isHost = false; playlist = []; participants = {};
+        channelRoles = {}; myChannelRole = null;
+        if (ytPlayer && playerReady) ytPlayer.pauseVideo();
+        disableControls();
+        $('currentSession').textContent = '';
+        $('currentTrackTitle').textContent = 'No track selected';
+        $('trackDetails').textContent = 'Create or join a session to start playing music';
+        updatePlaylistUI();
+        updateMyRoleDisplay();
+        renderSurroundLayout();
+        renderChannelGrid([]);
+        $('participantSection').style.display   = 'none';
+        $('surroundModeRow').style.display      = 'none';
+        $('channelAssignSection').style.display = 'none';
+        $('startShareBtn').disabled = true;
+        setStatus('Left session.');
+    }
 
-            // Global variables
-            let isHost = false;
-            let currentSessionId = null;
-            let sessionListener = null;
-            let currentTrackIndex = 0;
-            let isUpdatingFromSync = false;
-            let syncUpdateTimeout = null;
-            let playlist = [];
-            let player = null;
-            let playerReady = false;
-            let syncProgressInterval = null;
-            
-            const playPauseBtn = $('playPauseBtn');
-            const progressSlider = $('progressSlider');
-            const volumeSlider = $('volumeSlider');
-
-            // YouTube Player API ready callback
-            window.onYouTubeIframeAPIReady = function() {
-                player = new YT.Player('player', {
-                    height: '300',
-                    width: '100%',
-                    playerVars: {
-                        'autoplay': 0,
-                        'controls': 0,
-                        'disablekb': 1,
-                        'modestbranding': 1,
-                        'rel': 0
-                    },
-                    events: {
-                        'onReady': onPlayerReady,
-                        'onStateChange': onPlayerStateChange,
-                        'onError': onPlayerError
-                    }
-                });
-            };
-
-            function onPlayerReady(event) {
-                playerReady = true;
-                status('YouTube player ready. Create or join a session to start.', 'success');
-                
-                // Set initial volume
-                player.setVolume(parseInt(volumeSlider.value));
-                
-                // Start progress update interval
-                syncProgressInterval = setInterval(updateProgress, 1000);
-            }
-
-            function onPlayerStateChange(event) {
-                if (isUpdatingFromSync) return;
-                
-                switch (event.data) {
-                    case YT.PlayerState.PLAYING:
-                        playPauseBtn.innerHTML = '<span class="material-icons">pause</span>';
-                        if (isHost) {
-                            updateSession({
-                                isPlaying: true,
-                                currentTime: player.getCurrentTime(),
-                                lastUpdate: Date.now()
-                            });
-                        }
-                        break;
-                    case YT.PlayerState.PAUSED:
-                        playPauseBtn.innerHTML = '<span class="material-icons">play_arrow</span>';
-                        if (isHost) {
-                            updateSession({
-                                isPlaying: false,
-                                currentTime: player.getCurrentTime(),
-                                lastUpdate: Date.now()
-                            });
-                        }
-                        break;
-                    case YT.PlayerState.ENDED:
-                        if (isHost && playlist.length > 1) {
-                            nextTrack();
-                        }
-                        break;
-                }
-            }
-
-            function onPlayerError(event) {
-                status('YouTube player error: ' + event.data, 'error');
-            }
-
-            // Status update function
-            function status(message, type = '') {
-                const statusEl = $('status');
-                statusEl.textContent = message;
-                statusEl.className = type;
-                console.log(message);
-            }
-
-            // Initialize the player
-            function initializePlayer() {
-                // Volume slider
-                volumeSlider.addEventListener('input', onVolumeChange);
-                
-                // Progress slider
-                progressSlider.addEventListener('input', onSeek);
-                progressSlider.addEventListener('change', onSeek);
-                
-                status('Initializing YouTube player...');
-            }
-
-            // Session management
-            async function createSession() {
-                if (!window.db) {
-                    status('Firebase not initialized', 'error');
-                    return;
-                }
-                
-                // Wait for authentication
-                if (!auth.currentUser) {
-                    try {
-                        await auth.signInAnonymously();
-                    } catch (error) {
-                        status('Authentication failed: ' + error.message, 'error');
-                        return;
-                    }
-                }
-                
-                const sessionId = generateSessionId();
-                currentSessionId = sessionId;
-                isHost = true;
-                
-                try {
-                    const sessionRef = db.collection('sessions').doc(sessionId);
-                    
-                    const initialData = {
-                        host: true,
-                        currentTrack: 0,
-                        isPlaying: false,
-                        currentTime: 0,
-                        volume: 50,
-                        playlist: playlist,
-                        created: firebase.firestore.FieldValue.serverTimestamp(),
-                        lastUpdate: Date.now(),
-                        ownerId: auth.currentUser.uid
-                    };
-                    
-                    await sessionRef.set(initialData);
-                    
-                    $('currentSession').textContent = `Session: ${sessionId} (Host)`;
-                    $('sessionId').value = sessionId;
-                    
-                    enableHostControls();
-                    startSessionListener();
-                    
-                    status('Session created successfully! Share the session ID with others.', 'success');
-                } catch (error) {
-                    status('Error creating session: ' + error.message, 'error');
-                    console.error('Firebase error:', error);
-                }
-            }
-
-            async function joinSession() {
-                if (!window.db) {
-                    status('Firebase not initialized', 'error');
-                    return;
-                }
-                
-                const sessionId = $('sessionId').value.trim().toUpperCase();
-                if (!sessionId) {
-                    status('Please enter a session ID', 'error');
-                    return;
-                }
-                
-                try {
-                    const sessionRef = db.collection('sessions').doc(sessionId);
-                    const sessionSnap = await sessionRef.get();
-                    
-                    if (!sessionSnap.exists) {
-                        status('Session not found. Please check the session ID.', 'error');
-                        return;
-                    }
-                    
-                    const sessionData = sessionSnap.data();
-                    currentSessionId = sessionId;
-                    isHost = false;
-                    
-                    $('currentSession').textContent = `Session: ${sessionId} (Guest)`;
-                    
-                    // Sync playlist
-                    playlist = sessionData.playlist || [];
-                    updatePlaylistUI();
-                    
-                    enableGuestControls();
-                    startSessionListener();
-                    
-                    // Sync immediately with current session state
-                    await syncWithSession(sessionData);
-                    
-                    status('Joined session successfully!', 'success');
-                } catch (error) {
-                    status('Error joining session: ' + error.message, 'error');
-                    console.error('Firebase error:', error);
-                }
-            }
-
-            function leaveSession() {
-                if (sessionListener) {
-                    sessionListener();
-                    sessionListener = null;
-                }
-                
-                currentSessionId = null;
-                isHost = false;
-                
-                if (player && playerReady) {
-                    player.pauseVideo();
-                }
-                
-                disableAllControls();
-                
-                $('currentSession').textContent = '';
-                $('currentTrack').textContent = 'No track selected';
-                $('trackDetails').textContent = 'Create or join a session to start playing music';
-                
-                status('Left session. Create or join a session to continue.');
-            }
-
-            function generateSessionId() {
-                return Math.random().toString(36).substr(2, 6).toUpperCase();
-            }
-
-            // Control management
-            function enableHostControls() {
-                document.querySelectorAll('.control-btn').forEach(btn => btn.disabled = false);
-                volumeSlider.disabled = false;
-                progressSlider.disabled = false;
-                document.querySelectorAll('.track-item').forEach(item => {
-                    item.classList.remove('disabled');
-                });
-            }
-
-            function enableGuestControls() {
-                document.querySelectorAll('.control-btn').forEach(btn => btn.disabled = true);
-                volumeSlider.disabled = false; // Guests can control their own volume
-                progressSlider.disabled = true;
-                document.querySelectorAll('.track-item').forEach(item => {
-                    item.classList.add('disabled');
-                });
-            }
-
-            function disableAllControls() {
-                document.querySelectorAll('.control-btn').forEach(btn => btn.disabled = true);
-                volumeSlider.disabled = true;
-                progressSlider.disabled = true;
-                document.querySelectorAll('.track-item').forEach(item => {
-                    item.classList.add('disabled');
-                });
-            }
-
-            // Session synchronization
-            function startSessionListener() {
-                if (sessionListener) {
-                    sessionListener();
-                }
-                
-                const sessionRef = db.collection('sessions').doc(currentSessionId);
-                
-                sessionListener = sessionRef.onSnapshot((doc) => {
-                    if (doc.exists) {
-                        const data = doc.data();
-                        if (!isHost) {
-                            syncWithSession(data);
-                        }
-                    } else {
-                        status('Session ended or deleted.');
-                        leaveSession();
-                    }
-                });
-            }
-
-            async function syncWithSession(sessionData) {
-                if (isUpdatingFromSync || !playerReady) return;
-                
-                isUpdatingFromSync = true;
-                
-                try {
-                    // Sync playlist
-                    if (JSON.stringify(playlist) !== JSON.stringify(sessionData.playlist || [])) {
-                        playlist = sessionData.playlist || [];
-                        updatePlaylistUI();
-                    }
-                    
-                    // Sync track
-                    if (sessionData.currentTrack !== currentTrackIndex && playlist.length > 0) {
-                        currentTrackIndex = sessionData.currentTrack;
-                        loadTrack(currentTrackIndex);
-                        await new Promise(resolve => setTimeout(resolve, 500));
-                    }
-                    
-                    // Sync volume for guests
-                    if (!isHost && Math.abs(volumeSlider.value - sessionData.volume) > 1) {
-                        volumeSlider.value = sessionData.volume;
-                        $('volumePercent').textContent = sessionData.volume + '%';
-                        if (player && playerReady) {
-                            player.setVolume(sessionData.volume);
-                        }
-                    }
-                    
-                    // Sync playback state
-                    const timeDiff = Math.abs((player.getCurrentTime() || 0) - (sessionData.currentTime || 0));
-                    
-                    if (sessionData.isPlaying && player.getPlayerState() !== YT.PlayerState.PLAYING) {
-                        if (timeDiff > 2) {
-                            player.seekTo(sessionData.currentTime || 0);
-                        }
-                        player.playVideo();
-                    } else if (!sessionData.isPlaying && player.getPlayerState() === YT.PlayerState.PLAYING) {
-                        player.pauseVideo();
-                    }
-                    
-                    // Sync time if significant difference
-                    if (player.getPlayerState() === YT.PlayerState.PLAYING && timeDiff > 3) {
-                        player.seekTo(sessionData.currentTime || 0);
-                    }
-                    
-                } catch (error) {
-                    console.error('Sync error:', error);
-                } finally {
-                    setTimeout(() => {
-                        isUpdatingFromSync = false;
-                    }, 200);
-                }
-            }
-
-            async function updateSession(updates) {
-                if (!isHost || !currentSessionId || isUpdatingFromSync || !window.db) return;
-                
-                if (syncUpdateTimeout) {
-                    clearTimeout(syncUpdateTimeout);
-                }
-                
-                syncUpdateTimeout = setTimeout(async () => {
-                    try {
-                        const sessionRef = db.collection('sessions').doc(currentSessionId);
-                        await sessionRef.update({
-                            ...updates,
-                            lastUpdate: Date.now()
-                        });
-                    } catch (error) {
-                        console.error('Error updating session:', error);
-                    }
-                }, 100);
-            }
-
-            // YouTube integration
-            async function addTrackFromYoutube() {
-                const input = $('youtubeUrl').value.trim();
-                if (!input) {
-                    status('Please enter a YouTube URL', 'error');
-                    return;
-                }
-                
-                const videoId = extractYouTubeVideoId(input);
-                if (!videoId) {
-                    status('Invalid YouTube URL. Please check the format.', 'error');
-                    return;
-                }
-                
-                status('Adding YouTube track...', 'loading');
-                
-                try {
-                    // Fetch video info from YouTube
-                    const videoInfo = await fetchYouTubeVideoInfo(videoId);
-                    
-                    const track = {
-                        id: Date.now().toString(),
-                        title: videoInfo.title,
-                        artist: videoInfo.author,
-                        videoId: videoId,
-                        thumbnail: videoInfo.thumbnail,
-                        duration: videoInfo.duration,
-                        source: 'youtube'
-                    };
-                    
-                    playlist.push(track);
-                    updatePlaylistUI();
-                    
-                    if (isHost && currentSessionId) {
-                        await updateSession({ playlist });
-                    }
-                    
-                    $('youtubeUrl').value = '';
-                    status('Track added successfully!', 'success');
-                    
-                } catch (error) {
-                    status('Error adding track: ' + error.message, 'error');
-                }
-            }
-
-            function extractYouTubeVideoId(url) {
-                const regex = /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/;
-                const match = url.match(regex);
-                return match ? match[1] : null;
-            }
-
-            async function fetchYouTubeVideoInfo(videoId) {
-                // In a real implementation, you would use YouTube Data API
-                // For this demo, we'll create mock data
-                return {
-                    title: `YouTube Video ${videoId.slice(0, 8)}`,
-                    author: 'YouTube Channel',
-                    thumbnail: `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`,
-                    duration: '3:42'
-                };
-            }
-
-            // Playlist management
-            function updatePlaylistUI() {
-                const container = $('playlistContainer');
-                const countEl = $('playlistCount');
-                
-                countEl.textContent = `(${playlist.length} tracks)`;
-                
-                if (playlist.length === 0) {
-                    container.innerHTML = `
-                        <p style="color: #888; text-align: center; padding: 20px;">
-                            No tracks in playlist. Add some music above to get started!
-                        </p>
-                    `;
-                    return;
-                }
-                
-                container.innerHTML = playlist.map((track, index) => `
-                    <div class="track-item ${index === currentTrackIndex ? 'active' : ''}" onclick="selectTrack(${index})">
-                        <div class="track-info-text">
-                            <strong>${track.title}</strong><br>
-                            <small>${track.artist}</small>
-                        </div>
-                        <div>
-                            <span class="track-duration">${track.duration}</span>
-                            ${isHost ? `<button class="remove-track" onclick="removeTrack(${index}); event.stopPropagation();">×</button>` : ''}
-                        </div>
-                    </div>
-                `).join('');
-            }
-
-            function removeTrack(index) {
-                if (!isHost) return;
-                
-                playlist.splice(index, 1);
-                
-                if (currentTrackIndex >= index) {
-                    currentTrackIndex = Math.max(0, currentTrackIndex - 1);
-                }
-                
-                updatePlaylistUI();
-                
-                if (currentSessionId) {
-                    updateSession({ 
-                        playlist,
-                        currentTrack: currentTrackIndex
+    // Presence
+    async function registerPresence(sessionId) {
+        if (!myUserId) return;
+        const ref = db.collection('sessions').doc(sessionId).collection('participants').doc(myUserId);
+        await ref.set({ nickname: myNickname, joinedAt: Date.now() });
+        if (presenceListener) presenceListener();
+        presenceListener = db.collection('sessions').doc(sessionId).collection('participants')
+            .onSnapshot(snap => {
+                participants = {};
+                snap.forEach(doc => { participants[doc.id] = doc.data(); });
+                renderParticipantList();
+                if (isHost) renderChannelGrid(SURROUND_MODES[surroundMode] || []);
+                // If host is sharing audio, create offers for newly joined peers
+                if (isHost && localAudioStream) {
+                    Object.keys(participants).forEach(peerId => {
+                        if (peerId !== myUserId && !peerConnections[peerId]) createOffer(peerId);
                     });
                 }
-                
-                if (playlist.length === 0) {
-                    if (player && playerReady) {
-                        player.pauseVideo();
-                    }
-                    $('currentTrack').textContent = 'No track selected';
-                    $('trackDetails').textContent = 'Add tracks to continue playing';
-                }
-            }
+            });
+    }
 
-            // Playback controls
-            function loadTrack(index) {
-                if (index < 0 || index >= playlist.length || !playerReady) return;
-                
-                currentTrackIndex = index;
-                const track = playlist[index];
-                
-                player.loadVideoById(track.videoId);
-                
-                $('currentTrack').textContent = track.title;
-                $('trackDetails').textContent = `Artist: ${track.artist} • Duration: ${track.duration}`;
-                
+    // ══════════════════════════════════════════════════════════════════
+    // 6.  SESSION LISTENER & SYNC
+    // ══════════════════════════════════════════════════════════════════
+    function startSessionListener(sessionId) {
+        if (sessionListener) sessionListener();
+        sessionListener = db.collection('sessions').doc(sessionId).onSnapshot(doc => {
+            if (!doc.exists) { setStatus('Session ended.'); leaveSession(); return; }
+            const data = doc.data();
+            if (data.surroundMode && data.surroundMode !== surroundMode) {
+                surroundMode = data.surroundMode;
+                renderSurroundLayout();
+                if (isHost) renderChannelGrid(SURROUND_MODES[surroundMode] || []);
+            }
+            if (data.channelRoles) {
+                channelRoles = data.channelRoles;
+                updateMyRoleDisplay();
+                renderParticipantList();
+                renderSurroundLayout();
+            }
+            if (!isHost && data.audioShare && data.audioShare.active) {
+                $('remoteAudioSection').style.display = 'block';
+                listenForRtcOffer();
+            }
+            if (!isHost) syncWithSession(data);
+        });
+    }
+
+    async function syncWithSession(data) {
+        if (isUpdatingFromSync || !playerReady) return;
+        isUpdatingFromSync = true;
+        try {
+            const remotePlaylist = data.playlist || [];
+            if (JSON.stringify(playlist) !== JSON.stringify(remotePlaylist)) {
+                playlist = remotePlaylist;
                 updatePlaylistUI();
             }
-
-            async function togglePlayPause() {
-                if (!isHost || !currentSessionId || playlist.length === 0 || !playerReady) return;
-                
-                try {
-                    if (player.getPlayerState() === YT.PlayerState.PLAYING) {
-                        player.pauseVideo();
-                    } else {
-                        player.playVideo();
-                    }
-                } catch (error) {
-                    status('Playback error: ' + error.message, 'error');
-                }
+            if (data.currentTrack !== currentTrackIndex && playlist.length > 0) {
+                currentTrackIndex = data.currentTrack;
+                loadTrack(currentTrackIndex, false);
+                await sleep(500);
             }
-
-            function nextTrack() {
-                if (!isHost || !currentSessionId || playlist.length === 0) return;
-                
-                const nextIndex = (currentTrackIndex + 1) % playlist.length;
-                loadTrack(nextIndex);
-                updateSession({
-                    currentTrack: nextIndex,
-                    currentTime: 0,
-                    isPlaying: false
-                });
+            if (!isHost && data.volume !== undefined) {
+                const v = data.volume;
+                $('volumeSlider').value = v;
+                $('volumePercent').textContent = v + '%';
+                ytPlayer.setVolume(v);
             }
-
-            function previousTrack() {
-                if (!isHost || !currentSessionId || playlist.length === 0) return;
-                
-                const prevIndex = currentTrackIndex === 0 ? playlist.length - 1 : currentTrackIndex - 1;
-                loadTrack(prevIndex);
-                updateSession({
-                    currentTrack: prevIndex,
-                    currentTime: 0,
-                    isPlaying: false
-                });
+            const timeDiff = Math.abs((ytPlayer.getCurrentTime() || 0) - (data.currentTime || 0));
+            if (data.isPlaying && ytPlayer.getPlayerState() !== YT.PlayerState.PLAYING) {
+                if (timeDiff > 2) ytPlayer.seekTo(data.currentTime || 0);
+                ytPlayer.playVideo();
+            } else if (!data.isPlaying && ytPlayer.getPlayerState() === YT.PlayerState.PLAYING) {
+                ytPlayer.pauseVideo();
+            } else if (data.isPlaying && timeDiff > 3) {
+                ytPlayer.seekTo(data.currentTime || 0);
             }
+        } catch (err) { console.error('syncWithSession error:', err); }
+        finally { setTimeout(() => { isUpdatingFromSync = false; }, 200); }
+    }
 
-            function selectTrack(index) {
-                if (!isHost || !currentSessionId) return;
-                
-                loadTrack(index);
-                updateSession({
-                    currentTrack: index,
-                    currentTime: 0,
-                    isPlaying: false
-                });
-            }
+    async function updateSession(updates) {
+        if (!isHost || !currentSessionId || isUpdatingFromSync) return;
+        if (syncUpdateTimeout) clearTimeout(syncUpdateTimeout);
+        syncUpdateTimeout = setTimeout(async () => {
+            try {
+                await db.collection('sessions').doc(currentSessionId)
+                        .update(Object.assign({}, updates, { lastUpdate: Date.now() }));
+            } catch (err) { console.error('updateSession error:', err); }
+        }, 100);
+    }
 
-            // Event handlers
-            function updateProgress() {
-                if (!playerReady || isUpdatingFromSync || document.activeElement === progressSlider) return;
-                
-                try {
-                    const currentTime = player.getCurrentTime() || 0;
-                    const duration = player.getDuration() || 0;
-                    
-                    progressSlider.max = duration;
-                    progressSlider.value = currentTime;
-                    
-                    $('currentTime').textContent = formatTime(currentTime);
-                    $('duration').textContent = formatTime(duration);
-                    
-                    // Host updates session with current time periodically
-                    if (isHost && player.getPlayerState() === YT.PlayerState.PLAYING) {
-                        updateSession({
-                            currentTime: currentTime
-                        });
-                    }
-                } catch (error) {
-                    // Ignore errors during progress update
-                }
-            }
+    // ══════════════════════════════════════════════════════════════════
+    // 7.  CONTROLS & PLAYBACK
+    // ══════════════════════════════════════════════════════════════════
+    function enableControls(host) {
+        document.querySelectorAll('.control-btn').forEach(b => b.disabled = !host);
+        $('progressSlider').disabled = !host;
+        $('volumeSlider').disabled   = false;
+        $('startShareBtn').disabled  = !host;
+    }
+    function disableControls() {
+        document.querySelectorAll('.control-btn').forEach(b => b.disabled = true);
+        $('progressSlider').disabled = true;
+        $('volumeSlider').disabled   = true;
+        $('startShareBtn').disabled  = true;
+    }
 
-            function onVolumeChange() {
-                const volume = parseInt(volumeSlider.value);
-                $('volumePercent').textContent = volume + '%';
-                
-                if (playerReady) {
-                    player.setVolume(volume);
-                }
-                
-                if (isHost) {
-                    updateSession({ volume });
-                }
-            }
+    function loadTrack(index, broadcast) {
+        if (broadcast === undefined) broadcast = true;
+        if (index < 0 || index >= playlist.length || !playerReady) return;
+        currentTrackIndex = index;
+        const track = playlist[index];
+        ytPlayer.loadVideoById(track.videoId);
+        $('currentTrackTitle').textContent = track.title;
+        $('trackDetails').textContent = track.artist + '  \u00b7  ' + track.duration;
+        updatePlaylistUI();
+        if (broadcast && isHost && currentSessionId)
+            updateSession({ currentTrack: index, currentTime: 0, isPlaying: false });
+    }
 
-            function onSeek() {
-                if (!isHost || !playerReady) return;
-                
-                const seekTime = parseFloat(progressSlider.value);
-                player.seekTo(seekTime);
-                
-                updateSession({
-                    currentTime: seekTime
-                });
-            }
+    async function togglePlayPause() {
+        if (!isHost || !currentSessionId || !playlist.length || !playerReady) return;
+        if (ytPlayer.getPlayerState() === YT.PlayerState.PLAYING) {
+            ytPlayer.pauseVideo();
+        } else {
+            if ([YT.PlayerState.UNSTARTED, YT.PlayerState.CUED, -1].includes(ytPlayer.getPlayerState()))
+                loadTrack(currentTrackIndex);
+            ytPlayer.playVideo();
+        }
+    }
 
-            // Utility functions
-            function formatTime(seconds) {
-                if (isNaN(seconds) || seconds === null || seconds === undefined) return '0:00';
-                
-                const mins = Math.floor(seconds / 60);
-                const secs = Math.floor(seconds % 60);
-                return `${mins}:${secs.toString().padStart(2, '0')}`;
-            }
+    function nextTrack() {
+        if (!isHost || !currentSessionId || !playlist.length) return;
+        loadTrack((currentTrackIndex + 1) % playlist.length);
+    }
 
-            // Initialize when page loads
-            document.addEventListener('DOMContentLoaded', initializePlayer);
+    function previousTrack() {
+        if (!isHost || !currentSessionId || !playlist.length) return;
+        loadTrack(currentTrackIndex === 0 ? playlist.length - 1 : currentTrackIndex - 1);
+    }
 
-            // Handle Enter key in YouTube input
-            $('youtubeUrl').addEventListener('keypress', function(e) {
-                if (e.key === 'Enter') {
-                    addTrackFromYoutube();
-                }
+    function selectTrack(index) {
+        if (!isHost || !currentSessionId) return;
+        loadTrack(index);
+    }
+
+    function updateProgress() {
+        if (!playerReady || isUpdatingFromSync || document.activeElement === $('progressSlider')) return;
+        try {
+            const cur = ytPlayer.getCurrentTime() || 0;
+            const dur = ytPlayer.getDuration()    || 0;
+            $('progressSlider').max   = dur;
+            $('progressSlider').value = cur;
+            $('currentTime').textContent = formatTime(cur);
+            $('duration').textContent    = formatTime(dur);
+            if (isHost && ytPlayer.getPlayerState() === YT.PlayerState.PLAYING)
+                updateSession({ currentTime: cur });
+        } catch (_) {}
+    }
+
+    function onVolumeChange() {
+        const v = parseInt($('volumeSlider').value);
+        $('volumePercent').textContent = v + '%';
+        if (playerReady) ytPlayer.setVolume(v);
+        if (isHost) updateSession({ volume: v });
+    }
+
+    function onSeek() {
+        if (!isHost || !playerReady) return;
+        const t = parseFloat($('progressSlider').value);
+        ytPlayer.seekTo(t);
+        updateSession({ currentTime: t });
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    // 8.  YOUTUBE TRACK ADDING  (real titles via noembed.com)
+    // ══════════════════════════════════════════════════════════════════
+    function extractYouTubeVideoId(url) {
+        const patterns = [
+            /(?:youtube\.com\/watch\?v=)([^&\n?#]+)/,
+            /(?:youtu\.be\/)([^&\n?#]+)/,
+            /(?:youtube\.com\/embed\/)([^&\n?#]+)/,
+            /(?:youtube\.com\/shorts\/)([^&\n?#]+)/
+        ];
+        for (const re of patterns) {
+            const m = url.match(re);
+            if (m) return m[1];
+        }
+        return null;
+    }
+
+    async function fetchYouTubeVideoInfo(videoId) {
+        try {
+            const ytUrl  = 'https://www.youtube.com/watch?v=' + encodeURIComponent(videoId);
+            const apiUrl = 'https://noembed.com/embed?url=' + encodeURIComponent(ytUrl);
+            const res  = await fetch(apiUrl);
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            const data = await res.json();
+            return {
+                title:     data.title       || ('Video ' + videoId.slice(0,8)),
+                artist:    data.author_name  || 'YouTube',
+                thumbnail: 'https://img.youtube.com/vi/' + videoId + '/mqdefault.jpg',
+                duration:  'N/A'
+            };
+        } catch (err) {
+            console.warn('fetchYouTubeVideoInfo failed:', err);
+            return {
+                title:     'Video ' + videoId.slice(0,8),
+                artist:    'YouTube',
+                thumbnail: 'https://img.youtube.com/vi/' + videoId + '/mqdefault.jpg',
+                duration:  'N/A'
+            };
+        }
+    }
+
+    async function addTrackFromYoutube() {
+        const input = $('youtubeUrl').value.trim();
+        if (!input) { setStatus('Paste a YouTube URL first.', 'error'); return; }
+        const videoId = extractYouTubeVideoId(input);
+        if (!videoId) { setStatus('Could not recognise a YouTube video ID in that URL.', 'error'); return; }
+        setStatus('Fetching video info\u2026', 'loading');
+        const info = await fetchYouTubeVideoInfo(videoId);
+        const track = {
+            id: Date.now().toString(), title: info.title, artist: info.artist,
+            videoId, thumbnail: info.thumbnail, duration: info.duration, source: 'youtube'
+        };
+        playlist.push(track);
+        updatePlaylistUI();
+        if (isHost && currentSessionId) await updateSession({ playlist });
+        $('youtubeUrl').value = '';
+        setStatus('"' + info.title + '" added to playlist.', 'success');
+        if (playlist.length === 1 && playerReady) loadTrack(0, isHost);
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    // 9.  PLAYLIST UI
+    // ══════════════════════════════════════════════════════════════════
+    function updatePlaylistUI() {
+        const container = $('playlistContainer');
+        $('playlistCount').textContent = '(' + playlist.length + ' track' + (playlist.length !== 1 ? 's' : '') + ')';
+        if (!playlist.length) {
+            container.innerHTML = '<p style="color:rgba(255,255,255,.38);text-align:center;padding:20px 0">No tracks yet.</p>';
+            return;
+        }
+        container.innerHTML = playlist.map((t, i) =>
+            '<div class="track-item ' + (i === currentTrackIndex ? 'active' : '') + ' ' + (!isHost ? 'disabled' : '') + '" ' +
+            (isHost ? 'onclick="selectTrack(' + i + ')"' : '') + '>' +
+            '<div class="track-item-info">' +
+            '<strong>' + escapeHtml(t.title) + '</strong>' +
+            '<small>' + escapeHtml(t.artist) + '</small>' +
+            '</div>' +
+            '<span class="track-duration">' + escapeHtml(t.duration) + '</span>' +
+            (isHost ? '<button class="remove-track" onclick="removeTrack(' + i + ');event.stopPropagation()">\u00d7</button>' : '') +
+            '</div>'
+        ).join('');
+    }
+
+    function removeTrack(index) {
+        if (!isHost) return;
+        playlist.splice(index, 1);
+        if (currentTrackIndex >= index) currentTrackIndex = Math.max(0, currentTrackIndex - 1);
+        updatePlaylistUI();
+        if (currentSessionId) updateSession({ playlist, currentTrack: currentTrackIndex });
+        if (!playlist.length && playerReady) {
+            ytPlayer.pauseVideo();
+            $('currentTrackTitle').textContent = 'No track selected';
+            $('trackDetails').textContent = 'Add tracks to continue playing';
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    // 10. SURROUND SOUND
+    // ══════════════════════════════════════════════════════════════════
+    function initSurroundUI() {
+        refreshAudioOutputDevices();
+        if (isHost) {
+            $('surroundModeRow').style.display      = 'block';
+            $('channelAssignSection').style.display = 'block';
+            const row = $('surroundModeBtns');
+            row.innerHTML = Object.keys(SURROUND_MODES).map(m =>
+                '<button class="mode-btn ' + (m === surroundMode ? 'active' : '') + '" ' +
+                'onclick="setSurroundMode(\'' + m + '\')">' + m.toUpperCase() + '</button>'
+            ).join('');
+        }
+        $('participantSection').style.display = 'block';
+        renderSurroundLayout();
+        if (isHost) renderChannelGrid(SURROUND_MODES[surroundMode] || []);
+        updateMyRoleDisplay();
+    }
+
+    function setSurroundMode(mode) {
+        if (!isHost) return;
+        surroundMode = mode;
+        channelRoles = {};
+        renderSurroundLayout();
+        renderChannelGrid(SURROUND_MODES[mode] || []);
+        document.querySelectorAll('.mode-btn').forEach(b => {
+            b.classList.toggle('active', b.textContent.toLowerCase() === mode);
+        });
+        if (currentSessionId) updateSession({ surroundMode: mode, channelRoles: {} });
+    }
+
+    function renderSurroundLayout() {
+        const layout   = $('speakerLayout');
+        const channels = SURROUND_MODES[surroundMode] || [];
+        layout.innerHTML = '<div class="listener-icon">&#129489;</div>';
+        channels.forEach(ch => {
+            const assignment = Object.entries(channelRoles).find(function(e){ return e[1] === ch.name; });
+            const hasDevice = !!assignment;
+            const label    = hasDevice && participants[assignment[0]] ? participants[assignment[0]].nickname : '';
+            const node = document.createElement('div');
+            node.className  = 'speaker-node';
+            node.style.left = ch.x + '%';
+            node.style.top  = ch.y + '%';
+            node.innerHTML  =
+                '<div class="speaker-icon ' + (hasDevice ? 'has-device' : '') + '">\uD83D\uDD0A</div>' +
+                '<span class="speaker-label">' + escapeHtml(ch.name) +
+                (hasDevice && label ? '<br><span style="color:#4ecdc4;font-size:8.5px">' + escapeHtml(label) + '</span>' : '') +
+                '</span>';
+            layout.appendChild(node);
+        });
+    }
+
+    function renderChannelGrid(channels) {
+        const grid = $('channelGrid');
+        if (!channels.length) { grid.innerHTML = ''; return; }
+        grid.innerHTML = channels.map(ch => {
+            const assignedUid = (Object.entries(channelRoles).find(function(e){ return e[1] === ch.name; }) || [])[0] || '';
+            return '<div class="channel-card">' +
+                '<label>\uD83D\uDD0A ' + escapeHtml(ch.name) + '</label>' +
+                '<select onchange="assignChannelRole(\'' + ch.name + '\', this.value)">' +
+                '<option value="">\u2014 unassigned \u2014</option>' +
+                Object.entries(participants).map(function(e) {
+                    const uid = e[0]; const p = e[1];
+                    return '<option value="' + uid + '"' + (assignedUid === uid ? ' selected' : '') + '>' +
+                           escapeHtml(p.nickname) + (uid === myUserId ? ' (me)' : '') + '</option>';
+                }).join('') +
+                '</select></div>';
+        }).join('');
+    }
+
+    async function assignChannelRole(channelName, userId) {
+        if (!isHost) return;
+        Object.keys(channelRoles).forEach(uid => {
+            if (uid === userId || channelRoles[uid] === channelName) delete channelRoles[uid];
+        });
+        if (userId) channelRoles[userId] = channelName;
+        renderSurroundLayout();
+        renderChannelGrid(SURROUND_MODES[surroundMode] || []);
+        if (currentSessionId) await updateSession({ channelRoles: channelRoles });
+    }
+
+    function updateMyRoleDisplay() {
+        const el = $('myRoleDisplay');
+        if (!currentSessionId || !myUserId) {
+            el.innerHTML = '<span class="no-role-msg">Join a session to be assigned a speaker channel role.</span>';
+            myChannelRole = null; return;
+        }
+        myChannelRole = channelRoles[myUserId] || null;
+        if (myChannelRole) {
+            el.innerHTML = '<div style="margin-bottom:11px">Your channel role: <span class="my-role-badge">\uD83D\uDD0A ' + escapeHtml(myChannelRole) + '</span></div>';
+        } else {
+            el.innerHTML = '<div style="margin-bottom:11px"><span class="no-role-msg">No channel role assigned yet. The host will assign roles.</span></div>';
+        }
+    }
+
+    function renderParticipantList() {
+        const list = $('participantList');
+        const items = Object.entries(participants).map(function(e) {
+            const uid = e[0]; const p = e[1];
+            const role = channelRoles[uid] || '';
+            return '<div class="participant-chip">' +
+                '<span class="dot"></span>' +
+                escapeHtml(p.nickname) + (uid === myUserId ? ' (you)' : '') +
+                (role ? ' <span class="role-tag">' + escapeHtml(role) + '</span>' : '') +
+                '</div>';
+        });
+        list.innerHTML = items.length ? items.join('') :
+            '<span style="color:rgba(255,255,255,.38);font-size:.83em">No participants yet.</span>';
+    }
+
+    async function refreshAudioOutputDevices() {
+        try {
+            await navigator.mediaDevices.getUserMedia({ audio: true })
+                .then(function(s){ s.getTracks().forEach(function(t){ t.stop(); }); })
+                .catch(function(){});
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            audioOutputDevices = devices.filter(function(d){ return d.kind === 'audiooutput'; });
+        } catch (_) { audioOutputDevices = []; }
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    // 11. LOCAL AUDIO SHARING  (WebRTC + Firestore signalling)
+    // ══════════════════════════════════════════════════════════════════
+    async function startLocalAudioShare() {
+        if (!currentSessionId || !isHost) return;
+        try {
+            localAudioStream = await navigator.mediaDevices.getDisplayMedia({
+                audio: { echoCancellation: false, noiseSuppression: false, sampleRate: 48000 },
+                video: false
             });
+        } catch (_) {
+            try {
+                localAudioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            } catch (err) {
+                setStatus('Could not access audio: ' + err.message, 'error'); return;
+            }
+        }
+        localAudioStream.getAudioTracks()[0].onended = function(){ stopLocalAudioShare(); };
+        $('startShareBtn').style.display = 'none';
+        $('stopShareBtn').style.display  = '';
+        var statusEl = $('hostShareStatus');
+        statusEl.className   = 'share-status active-share';
+        statusEl.textContent = '\uD83D\uDD34 Sharing audio live\u2026';
+        await db.collection('sessions').doc(currentSessionId)
+                .update({ audioShare: { active: true, hostId: myUserId, startedAt: Date.now() } });
+        for (var peerId of Object.keys(participants)) {
+            if (peerId !== myUserId) await createOffer(peerId);
+        }
+        setStatus('Sharing audio \u2013 other devices will receive the stream.', 'success');
+    }
 
-            // Cleanup on page unload
-            window.addEventListener('beforeunload', function() {
-                if (sessionListener) {
-                    sessionListener();
-                }
-                if (syncProgressInterval) {
-                    clearInterval(syncProgressInterval);
-                }
+    async function stopLocalAudioShare() {
+        if (localAudioStream) {
+            localAudioStream.getTracks().forEach(function(t){ t.stop(); });
+            localAudioStream = null;
+        }
+        closeAllPeerConnections();
+        $('startShareBtn').style.display = '';
+        $('stopShareBtn').style.display  = 'none';
+        var statusEl = $('hostShareStatus');
+        statusEl.className   = 'share-status';
+        statusEl.textContent = 'Not sharing';
+        if (currentSessionId) {
+            try {
+                await db.collection('sessions').doc(currentSessionId)
+                        .update({ audioShare: { active: false, hostId: null } });
+            } catch (_) {}
+        }
+    }
+
+    function getRtcConfig() {
+        return { iceServers: [
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:stun1.l.google.com:19302' }
+        ]};
+    }
+
+    async function createOffer(peerId) {
+        if (peerConnections[peerId]) return;
+        var pc = new RTCPeerConnection(getRtcConfig());
+        peerConnections[peerId] = pc;
+        if (localAudioStream) {
+            localAudioStream.getAudioTracks().forEach(function(track){
+                pc.addTrack(track, localAudioStream);
             });
-        </script>
+        }
+        var sigRef = db.collection('sessions').doc(currentSessionId)
+                       .collection('signals').doc(peerId);
+        pc.onicecandidate = async function(ev) {
+            if (!ev.candidate) return;
+            await sigRef.update({
+                hostCandidates: firebase.firestore.FieldValue.arrayUnion(ev.candidate.toJSON())
+            }).catch(function() {
+                sigRef.set({ hostCandidates: [ev.candidate.toJSON()] }, { merge: true });
+            });
+        };
+        var offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        await sigRef.set({ offer: { type: offer.type, sdp: offer.sdp }, hostCandidates: [], guestCandidates: [] }, { merge: true });
+        sigRef.onSnapshot(async function(snap) {
+            var d = snap.data();
+            if (!d) return;
+            if (d.answer && pc.signalingState === 'have-local-offer') {
+                await pc.setRemoteDescription(new RTCSessionDescription(d.answer));
+            }
+            if (d.guestCandidates) {
+                for (var c of d.guestCandidates) {
+                    try { await pc.addIceCandidate(new RTCIceCandidate(c)); } catch (_) {}
+                }
+            }
+        });
+    }
+
+    async function listenForRtcOffer() {
+        if (!currentSessionId || !myUserId || rtcListener) return;
+        var sigRef = db.collection('sessions').doc(currentSessionId)
+                       .collection('signals').doc(myUserId);
+        rtcListener = sigRef.onSnapshot(async function(snap) {
+            var d = snap.data();
+            if (!d || !d.offer) return;
+            if (peerConnections[myUserId]) return;
+            var pc = new RTCPeerConnection(getRtcConfig());
+            peerConnections[myUserId] = pc;
+            pc.ontrack = function(event) { receiveRemoteAudioStream(event.streams[0]); };
+            pc.onicecandidate = async function(ev) {
+                if (!ev.candidate) return;
+                await sigRef.update({
+                    guestCandidates: firebase.firestore.FieldValue.arrayUnion(ev.candidate.toJSON())
+                }).catch(function() {
+                    sigRef.set({ guestCandidates: [ev.candidate.toJSON()] }, { merge: true });
+                });
+            };
+            await pc.setRemoteDescription(new RTCSessionDescription(d.offer));
+            if (d.hostCandidates) {
+                for (var c of d.hostCandidates) {
+                    try { await pc.addIceCandidate(new RTCIceCandidate(c)); } catch (_) {}
+                }
+            }
+            var answer = await pc.createAnswer();
+            await pc.setLocalDescription(answer);
+            await sigRef.update({ answer: { type: answer.type, sdp: answer.sdp } });
+        });
+    }
+
+    function receiveRemoteAudioStream(stream) {
+        var list  = $('remoteAudioList');
+        var id    = 'remote-' + Date.now();
+        var audio = document.createElement('audio');
+        audio.srcObject = stream;
+        document.body.appendChild(audio);
+        remoteAudios[id] = audio;
+        var playPromise = audio.play();
+        if (playPromise !== undefined) {
+            playPromise.catch(function() {
+                // Autoplay blocked — add a click-to-play button
+                var playBtn = document.createElement('button');
+                playBtn.className = 'btn-primary';
+                playBtn.style.marginTop = '8px';
+                playBtn.textContent = '\u25b6 Click to play audio stream';
+                playBtn.onclick = function() { audio.play(); playBtn.remove(); };
+                list.appendChild(playBtn);
+            });
+        }
+        var deviceOptions = audioOutputDevices.length
+            ? audioOutputDevices.map(function(d){
+                return '<option value="' + d.deviceId + '">' + escapeHtml(d.label || d.deviceId.slice(0,14)) + '</option>';
+              }).join('')
+            : '';
+        var item = document.createElement('div');
+        item.className = 'remote-audio-item';
+        item.id = id + '-item';
+        item.innerHTML =
+            '<span class="material-icons">spatial_audio</span>' +
+            '<span>Host audio stream</span>' +
+            '<select onchange="setRemoteAudioOutput(\'' + id + '\', this.value)" title="Output device">' +
+            '<option value="">Default output</option>' + deviceOptions + '</select>';
+        list.innerHTML = '';
+        list.appendChild(item);
+        var statusEl = $('hostShareStatus');
+        if (statusEl) {
+            statusEl.className   = 'share-status receiving';
+            statusEl.textContent = '\uD83D\uDCF6 Receiving audio stream';
+        }
+    }
+
+    async function setRemoteAudioOutput(audioId, deviceId) {
+        var audio = remoteAudios[audioId];
+        if (!audio) return;
+        if (typeof audio.setSinkId === 'function') {
+            try { await audio.setSinkId(deviceId); } catch (err) { console.warn('setSinkId:', err); }
+        }
+    }
+
+    function closeAllPeerConnections() {
+        Object.values(peerConnections).forEach(function(pc){ try { pc.close(); } catch (_) {} });
+        peerConnections = {};
+        Object.values(remoteAudios).forEach(function(a){ try { a.pause(); a.srcObject = null; } catch (_) {} });
+        remoteAudios = {};
+        if (rtcListener) { rtcListener(); rtcListener = null; }
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    // 12. VIRTUAL AUDIO DRIVER DOWNLOAD (info placeholder)
+    // ══════════════════════════════════════════════════════════════════
+    function downloadDriver(os) {
+        var msgs = {
+            windows: 'The AuraSync Virtual Audio Driver for Windows is coming soon.\n\nIn the meantime:\n1. Install VB-Cable from vb-audio.com (free)\n2. Set "CABLE Input (VB-Audio Virtual Cable)" as your default playback device\n3. In AuraSync, click the "\u25b6 Share Audio" button — when prompted, choose "Share entire screen" and tick "Share system audio"',
+            mac:     'The AuraSync Virtual Audio Driver for macOS is coming soon.\n\nIn the meantime:\n1. Install BlackHole 2ch (free) from existential.audio/blackhole\n2. Set "BlackHole 2ch" as your system audio output in System Preferences > Sound\n3. In AuraSync, click the "\u25b6 Share Audio" button — BlackHole will appear as a capture source',
+            linux:   'On Linux with PulseAudio:\n1. Create a null-sink:\n   pactl load-module module-null-sink sink_name=aurasync sink_properties=device.description=AuraSync\n2. Route your app audio to the "AuraSync" sink in the audio mixer\n3. In AuraSync, click the "\u25b6 Share Audio" button and select the AuraSync monitor as your capture source'
+        };
+        alert(msgs[os] || 'Coming soon!');
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    // 13. UTILITIES
+    // ══════════════════════════════════════════════════════════════════
+    function formatTime(s) {
+        if (!s || isNaN(s)) return '0:00';
+        return Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0');
+    }
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        return String(str)
+            .replace(/&/g,  '&amp;')
+            .replace(/</g,  '&lt;')
+            .replace(/>/g,  '&gt;')
+            .replace(/"/g,  '&quot;');
+    }
+
+    function sleep(ms) { return new Promise(function(r){ setTimeout(r, ms); }); }
+
+    // ══════════════════════════════════════════════════════════════════
+    // 14. EVENT LISTENERS & INIT
+    // ══════════════════════════════════════════════════════════════════
+    document.addEventListener('DOMContentLoaded', function() {
+        $('volumeSlider').addEventListener('input',  onVolumeChange);
+        $('progressSlider').addEventListener('input',  onSeek);
+        $('progressSlider').addEventListener('change', onSeek);
+        $('youtubeUrl').addEventListener('keypress', function(e){ if (e.key === 'Enter') addTrackFromYoutube(); });
+        $('sessionId').addEventListener('keypress',  function(e){ if (e.key === 'Enter') joinSession(); });
+        renderSurroundLayout(); // show default stereo layout on load
+    });
+
+    window.addEventListener('beforeunload', function() {
+        if (sessionListener) sessionListener();
+        if (syncInterval)    clearInterval(syncInterval);
+        closeAllPeerConnections();
+    });
     </script>
 </body>
 </html>
