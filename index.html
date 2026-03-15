@@ -377,29 +377,8 @@
         }
 
         /* Channel grid */
-        .channel-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
-        .channel-card {
-            background: rgba(255,255,255,.05); border-radius: var(--radius-md);
-            padding: 12px 14px; border: 1px solid var(--glass-bd);
-        }
-        .channel-card label { display: block; font-size: .75em; font-weight: 600; color: var(--text-muted); margin-bottom: 7px; letter-spacing: .02em; }
-        .channel-card select {
-            width: 100%; padding: 7px 10px; border-radius: var(--radius-sm);
-            background: rgba(255,255,255,0.07); color: var(--text);
-            border: 1px solid var(--glass-bd); font-size: .82em;
-            font-family: inherit; cursor: pointer; outline: none;
-            transition: border-color .2s;
-        }
-        .channel-card select:focus { border-color: var(--accent2); }
-        .channel-card select option { background: #0d0d2b; }
 
         /* Role badge */
-        .my-role-badge {
-            display: inline-flex; align-items: center; gap: 5px;
-            padding: 4px 12px; border-radius: 12px;
-            background: linear-gradient(135deg, var(--accent1), var(--accent3));
-            font-size: .8em; font-weight: 700; letter-spacing: .02em;
-        }
         .no-role-msg { color: var(--text-dim); font-size: .83em; }
 
         /* Participants */
@@ -414,51 +393,6 @@
             width: 6px; height: 6px; border-radius: 50%; background: var(--accent2);
             box-shadow: 0 0 5px var(--accent2);
         }
-        .participant-chip .role-tag { font-size: .75em; color: var(--gold); font-weight: 700; }
-
-        /* ── Audio Sharing ── */
-        .share-controls { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; }
-        .btn-primary {
-            padding: 10px 18px; border: none;
-            background: linear-gradient(135deg, #5b8def, #3366cc);
-            color: white; border-radius: var(--radius-sm); cursor: pointer;
-            font-weight: 600; font-family: inherit; font-size: .86em;
-            transition: all .22s; display: inline-flex; align-items: center; gap: 6px;
-        }
-        .btn-primary:hover:not(:disabled) { transform: translateY(-1px); filter: brightness(1.1); box-shadow: 0 6px 20px rgba(91,141,239,.35); }
-        .btn-primary:disabled { opacity: .35; cursor: not-allowed; transform: none; filter: none; }
-        .btn-danger {
-            padding: 10px 18px; border: none;
-            background: linear-gradient(135deg, #f85050, #c82333);
-            color: white; border-radius: var(--radius-sm); cursor: pointer;
-            font-weight: 600; font-family: inherit; font-size: .86em;
-            transition: all .22s; display: inline-flex; align-items: center; gap: 6px;
-        }
-        .btn-danger:hover { transform: translateY(-1px); filter: brightness(1.1); box-shadow: 0 6px 20px rgba(248,80,80,.35); }
-        .share-status {
-            padding: 7px 13px; border-radius: var(--radius-sm); font-size: .82em; font-weight: 500;
-            background: rgba(255,255,255,0.05); border: 1px solid var(--glass-bd);
-            color: var(--text-muted);
-        }
-        .share-status.active-share { background: rgba(78,205,196,.08); border-color: rgba(78,205,196,.3); color: var(--accent2); }
-        .share-status.receiving    { background: rgba(91,141,239,.08); border-color: rgba(91,141,239,.3); color: #8ab4f8; }
-
-        /* Remote audio items */
-        .remote-audio-list { margin-top: 10px; }
-        .remote-audio-item {
-            display: flex; align-items: center; gap: 12px; padding: 10px 14px;
-            border-radius: var(--radius-sm);
-            background: rgba(255,255,255,0.05); margin-bottom: 8px;
-            border: 1px solid var(--glass-bd);
-        }
-        .remote-audio-item .material-icons { color: var(--accent2); }
-        .remote-audio-item select {
-            margin-left: auto; padding: 5px 9px; border-radius: 6px;
-            background: rgba(255,255,255,0.07); color: var(--text);
-            border: 1px solid var(--glass-bd); font-size: .8em; cursor: pointer;
-            font-family: inherit; outline: none;
-        }
-        .remote-audio-item select option { background: #0d0d2b; }
 
         /* ── Hint / helper text ── */
         .hint-text {
@@ -575,6 +509,16 @@
         </div>
     </div>
 
+    <!-- Playlist -->
+    <div class="card">
+        <h3><span class="card-icon">&#127925;</span> Playlist <span id="playlistCount" style="font-weight:400;opacity:.5;font-size:.9em">(0 tracks)</span></h3>
+        <div id="playlistContainer">
+            <p style="color:var(--text-dim);text-align:center;padding:24px 0;font-size:.88em">
+                No tracks yet &#8212; paste a YouTube URL in the <em>Add Music</em> section below to get started!
+            </p>
+        </div>
+    </div>
+
     <!-- Add track -->
     <div class="card">
         <h3><span class="card-icon">&#10133;</span> Add Music from YouTube</h3>
@@ -593,10 +537,6 @@
     <div class="card" id="surroundSection">
         <h3><span class="card-icon">&#128266;</span> Surround Sound Configuration</h3>
 
-        <div id="myRoleDisplay">
-            <span class="no-role-msg">Join a session to be assigned a speaker channel role.</span>
-        </div>
-
         <!-- Mode picker (host only) -->
         <div id="surroundModeRow" style="display:none">
             <p class="section-hint">
@@ -610,52 +550,10 @@
             <div class="listener-icon">&#129489;</div>
         </div>
 
-        <!-- Channel to device/participant assignment (host) -->
-        <div id="channelAssignSection" style="display:none">
-            <p class="section-hint">
-                Assign each channel to a session participant:
-            </p>
-            <div class="channel-grid" id="channelGrid"></div>
-        </div>
-
         <!-- Participants -->
         <div id="participantSection" style="display:none">
             <p class="section-hint" style="margin-top:14px">Active participants:</p>
             <div class="participant-list" id="participantList"></div>
-        </div>
-    </div>
-
-    <!-- ══ Local Audio Sharing ══ -->
-    <div class="card" id="audioShareSection">
-        <h3><span class="card-icon">&#128225;</span> Share Local Audio to Other Devices</h3>
-        <p class="hint-text" style="margin-bottom:13px">
-            Capture your system audio or microphone and stream it in real-time to every device
-            in the session via WebRTC. Each receiving device can pick which speaker output plays the stream.
-        </p>
-
-        <!-- Host sharing controls -->
-        <div id="hostShareControls">
-            <div class="share-controls">
-                <button class="btn-primary" id="startShareBtn" onclick="startLocalAudioShare()" disabled>
-                    <span class="material-icons" style="font-size:16px">mic</span> Share Audio
-                </button>
-                <button class="btn-danger" id="stopShareBtn" onclick="stopLocalAudioShare()" style="display:none">
-                    <span class="material-icons" style="font-size:16px">stop</span> Stop Sharing
-                </button>
-                <span class="share-status" id="hostShareStatus">Not sharing</span>
-            </div>
-            <p class="hint-text">
-                On desktop: choose &#8220;Share tab audio&#8221; or &#8220;Share entire screen (with audio)&#8221; when prompted.
-                On mobile: microphone capture is used.
-            </p>
-        </div>
-
-        <!-- Received streams (guest) -->
-        <div id="remoteAudioSection" style="display:none;margin-top:14px">
-            <p class="section-hint">Received audio streams:</p>
-            <div class="remote-audio-list" id="remoteAudioList">
-                <p style="color:var(--text-dim);font-size:.83em">No streams received yet.</p>
-            </div>
         </div>
     </div>
 
@@ -685,8 +583,8 @@
             </div>
             <div class="vad-step">
                 <div class="step-num">4</div>
-                <p><strong>Assign Channels</strong><br>
-                   Use the Surround Sound panel to assign each device to a speaker channel.</p>
+                <p><strong>Configure Surround Sound</strong><br>
+                   Use the Surround Sound panel above to select the speaker layout for your session.</p>
             </div>
         </div>
         <div class="vad-download-row">
@@ -695,19 +593,8 @@
             <button class="btn-outline" onclick="downloadDriver('linux')">&#128039; Linux (.deb)</button>
         </div>
         <p class="hint-text" style="margin-top:12px">
-            Alternatively: use VB-Cable (Windows/Mac) or PulseAudio null-sink (Linux) and
-            click &#8220;Share Audio&#8221; in the panel above.
+            Alternatively: use VB-Cable (Windows/Mac) or PulseAudio null-sink (Linux) as a virtual audio output device.
         </p>
-    </div>
-
-    <!-- Playlist -->
-    <div class="card">
-        <h3><span class="card-icon">&#127925;</span> Playlist <span id="playlistCount" style="font-weight:400;opacity:.5;font-size:.9em">(0 tracks)</span></h3>
-        <div id="playlistContainer">
-            <p style="color:var(--text-dim);text-align:center;padding:24px 0;font-size:.88em">
-                No tracks yet &#8212; paste a YouTube URL above to get started!
-            </p>
-        </div>
     </div>
 
     <!-- ════════════════════════════════════════════════════════════════
@@ -753,7 +640,6 @@
     let currentSessionId   = null;
     let sessionListener    = null;
     let presenceListener   = null;
-    let rtcListener        = null;
     let currentTrackIndex  = 0;
     let isUpdatingFromSync = false;
     let syncUpdateTimeout  = null;
@@ -764,15 +650,12 @@
 
     // Surround
     let surroundMode       = 'stereo';
-    let channelRoles       = {};   // { userId: channelName }
-    let myChannelRole      = null;
-    let audioOutputDevices = [];
-
-    // WebRTC
-    let localAudioStream   = null;
-    let peerConnections    = {};   // { peerId: RTCPeerConnection }
-    let remoteAudios       = {};   // { id: HTMLAudioElement }
     let participants       = {};   // { userId: { nickname, joinedAt } }
+
+    // Sync drift correction thresholds (seconds).
+    // Seek to correct position when drift exceeds these values.
+    const SYNC_SEEK_ON_PLAY   = 0.5;  // used when playback state transitions to playing
+    const SYNC_SEEK_WHILE_PLAYING = 1; // used during continuous playback
 
     const SURROUND_MODES = {
         'stereo': [
@@ -822,6 +705,12 @@
         ytPlayer.setVolume(parseInt($('volumeSlider').value));
         syncInterval = setInterval(updateProgress, 1000);
         setStatus('YouTube player ready. Create or join a session to start.', 'success');
+        // If we joined a session before the player was ready, sync the existing state now
+        if (currentSessionId && !isHost) {
+            db.collection('sessions').doc(currentSessionId).get().then(doc => {
+                if (doc.exists) syncWithSession(doc.data());
+            }).catch(err => console.error('onPlayerReady sync error:', err));
+        }
     }
 
     function onPlayerStateChange(event) {
@@ -878,8 +767,7 @@
         try {
             await db.collection('sessions').doc(sessionId).set({
                 ownerId: myUserId, currentTrack: 0, isPlaying: false, currentTime: 0,
-                volume: 50, playlist: [], surroundMode: 'stereo', channelRoles: {},
-                audioShare: { active: false, hostId: null },
+                volume: 50, playlist: [], surroundMode: 'stereo',
                 created: firebase.firestore.FieldValue.serverTimestamp(), lastUpdate: Date.now()
             });
             $('sessionId').value = sessionId;
@@ -906,14 +794,12 @@
             isHost = (data.ownerId === myUserId);
             playlist     = data.playlist     || [];
             surroundMode = data.surroundMode  || 'stereo';
-            channelRoles = data.channelRoles  || {};
             $('currentSession').textContent = 'Session: ' + sessionId + '  (' + (isHost ? 'Host' : 'Guest') + ')';
             updatePlaylistUI();
             enableControls(isHost);
             await registerPresence(sessionId);
             startSessionListener(sessionId);
             initSurroundUI();
-            updateMyRoleDisplay();
             await syncWithSession(data);
             setStatus('Joined session ' + sessionId, 'success');
         } catch (err) {
@@ -922,30 +808,22 @@
     }
 
     async function leaveSession() {
-        stopLocalAudioShare();
-        closeAllPeerConnections();
         if (sessionListener)  { sessionListener();  sessionListener  = null; }
         if (presenceListener) { presenceListener(); presenceListener = null; }
-        if (rtcListener)      { rtcListener();       rtcListener      = null; }
         if (currentSessionId && myUserId) {
             try { await db.collection('sessions').doc(currentSessionId)
                           .collection('participants').doc(myUserId).delete(); } catch (_) {}
         }
         currentSessionId = null; isHost = false; playlist = []; participants = {};
-        channelRoles = {}; myChannelRole = null;
         if (ytPlayer && playerReady) ytPlayer.pauseVideo();
         disableControls();
         $('currentSession').textContent = '';
         $('currentTrackTitle').textContent = 'No track selected';
         $('trackDetails').textContent = 'Create or join a session to start playing music';
         updatePlaylistUI();
-        updateMyRoleDisplay();
         renderSurroundLayout();
-        renderChannelGrid([]);
         $('participantSection').style.display   = 'none';
         $('surroundModeRow').style.display      = 'none';
-        $('channelAssignSection').style.display = 'none';
-        $('startShareBtn').disabled = true;
         setStatus('Left session.');
     }
 
@@ -960,13 +838,6 @@
                 participants = {};
                 snap.forEach(doc => { participants[doc.id] = doc.data(); });
                 renderParticipantList();
-                if (isHost) renderChannelGrid(SURROUND_MODES[surroundMode] || []);
-                // If host is sharing audio, create offers for newly joined peers
-                if (isHost && localAudioStream) {
-                    Object.keys(participants).forEach(peerId => {
-                        if (peerId !== myUserId && !peerConnections[peerId]) createOffer(peerId);
-                    });
-                }
             });
     }
 
@@ -981,17 +852,6 @@
             if (data.surroundMode && data.surroundMode !== surroundMode) {
                 surroundMode = data.surroundMode;
                 renderSurroundLayout();
-                if (isHost) renderChannelGrid(SURROUND_MODES[surroundMode] || []);
-            }
-            if (data.channelRoles) {
-                channelRoles = data.channelRoles;
-                updateMyRoleDisplay();
-                renderParticipantList();
-                renderSurroundLayout();
-            }
-            if (!isHost && data.audioShare && data.audioShare.active) {
-                $('remoteAudioSection').style.display = 'block';
-                listenForRtcOffer();
             }
             if (!isHost) syncWithSession(data);
         });
@@ -1019,14 +879,22 @@
                 $('volumePercent').textContent = v + '%';
                 ytPlayer.setVolume(v);
             }
-            const timeDiff = Math.abs((ytPlayer.getCurrentTime() || 0) - (data.currentTime || 0));
+            // Compensate for time elapsed since host wrote the update, to reduce sync lag.
+            // NOTE: relies on client clocks being reasonably in sync (±1 s). Firestore
+            // server timestamps are not used here because they require an extra round-trip;
+            // Date.now() is accurate enough given the sub-second thresholds below.
+            const elapsed = (data.isPlaying && data.lastUpdate)
+                ? Math.max(0, (Date.now() - data.lastUpdate) / 1000)
+                : 0;
+            const targetTime = (data.currentTime || 0) + elapsed;
+            const timeDiff = Math.abs((ytPlayer.getCurrentTime() || 0) - targetTime);
             if (data.isPlaying && ytPlayer.getPlayerState() !== YT.PlayerState.PLAYING) {
-                if (timeDiff > 2) ytPlayer.seekTo(data.currentTime || 0);
+                if (timeDiff > SYNC_SEEK_ON_PLAY) ytPlayer.seekTo(targetTime);
                 ytPlayer.playVideo();
             } else if (!data.isPlaying && ytPlayer.getPlayerState() === YT.PlayerState.PLAYING) {
                 ytPlayer.pauseVideo();
-            } else if (data.isPlaying && timeDiff > 3) {
-                ytPlayer.seekTo(data.currentTime || 0);
+            } else if (data.isPlaying && timeDiff > SYNC_SEEK_WHILE_PLAYING) {
+                ytPlayer.seekTo(targetTime);
             }
         } catch (err) { console.error('syncWithSession error:', err); }
         finally { setTimeout(() => { isUpdatingFromSync = false; }, 200); }
@@ -1050,13 +918,11 @@
         document.querySelectorAll('.control-btn').forEach(b => b.disabled = !host);
         $('progressSlider').disabled = !host;
         $('volumeSlider').disabled   = false;
-        $('startShareBtn').disabled  = !host;
     }
     function disableControls() {
         document.querySelectorAll('.control-btn').forEach(b => b.disabled = true);
         $('progressSlider').disabled = true;
         $('volumeSlider').disabled   = true;
-        $('startShareBtn').disabled  = true;
     }
 
     function loadTrack(index, broadcast) {
@@ -1233,10 +1099,8 @@
     // 10. SURROUND SOUND
     // ══════════════════════════════════════════════════════════════════
     function initSurroundUI() {
-        refreshAudioOutputDevices();
         if (isHost) {
-            $('surroundModeRow').style.display      = 'block';
-            $('channelAssignSection').style.display = 'block';
+            $('surroundModeRow').style.display = 'block';
             const row = $('surroundModeBtns');
             row.innerHTML = Object.keys(SURROUND_MODES).map(m =>
                 '<button class="mode-btn ' + (m === surroundMode ? 'active' : '') + '" ' +
@@ -1245,20 +1109,16 @@
         }
         $('participantSection').style.display = 'block';
         renderSurroundLayout();
-        if (isHost) renderChannelGrid(SURROUND_MODES[surroundMode] || []);
-        updateMyRoleDisplay();
     }
 
     function setSurroundMode(mode) {
         if (!isHost) return;
         surroundMode = mode;
-        channelRoles = {};
         renderSurroundLayout();
-        renderChannelGrid(SURROUND_MODES[mode] || []);
         document.querySelectorAll('.mode-btn').forEach(b => {
             b.classList.toggle('active', b.textContent.toLowerCase() === mode);
         });
-        if (currentSessionId) updateSession({ surroundMode: mode, channelRoles: {} });
+        if (currentSessionId) updateSession({ surroundMode: mode });
     }
 
     function renderSurroundLayout() {
@@ -1266,279 +1126,38 @@
         const channels = SURROUND_MODES[surroundMode] || [];
         layout.innerHTML = '<div class="listener-icon">&#129489;</div>';
         channels.forEach(ch => {
-            const assignment = Object.entries(channelRoles).find(function(e){ return e[1] === ch.name; });
-            const hasDevice = !!assignment;
-            const label    = hasDevice && participants[assignment[0]] ? participants[assignment[0]].nickname : '';
             const node = document.createElement('div');
             node.className  = 'speaker-node';
             node.style.left = ch.x + '%';
             node.style.top  = ch.y + '%';
             node.innerHTML  =
-                '<div class="speaker-icon ' + (hasDevice ? 'has-device' : '') + '">\uD83D\uDD0A</div>' +
-                '<span class="speaker-label">' + escapeHtml(ch.name) +
-                (hasDevice && label ? '<br><span style="color:var(--accent2);font-size:8.5px">' + escapeHtml(label) + '</span>' : '') +
-                '</span>';
+                '<div class="speaker-icon">\uD83D\uDD0A</div>' +
+                '<span class="speaker-label">' + escapeHtml(ch.name) + '</span>';
             layout.appendChild(node);
         });
-    }
-
-    function renderChannelGrid(channels) {
-        const grid = $('channelGrid');
-        if (!channels.length) { grid.innerHTML = ''; return; }
-        grid.innerHTML = channels.map(ch => {
-            const assignedUid = (Object.entries(channelRoles).find(function(e){ return e[1] === ch.name; }) || [])[0] || '';
-            return '<div class="channel-card">' +
-                '<label>\uD83D\uDD0A ' + escapeHtml(ch.name) + '</label>' +
-                '<select onchange="assignChannelRole(\'' + ch.name + '\', this.value)">' +
-                '<option value="">\u2014 unassigned \u2014</option>' +
-                Object.entries(participants).map(function(e) {
-                    const uid = e[0]; const p = e[1];
-                    return '<option value="' + uid + '"' + (assignedUid === uid ? ' selected' : '') + '>' +
-                           escapeHtml(p.nickname) + (uid === myUserId ? ' (me)' : '') + '</option>';
-                }).join('') +
-                '</select></div>';
-        }).join('');
-    }
-
-    async function assignChannelRole(channelName, userId) {
-        if (!isHost) return;
-        Object.keys(channelRoles).forEach(uid => {
-            if (uid === userId || channelRoles[uid] === channelName) delete channelRoles[uid];
-        });
-        if (userId) channelRoles[userId] = channelName;
-        renderSurroundLayout();
-        renderChannelGrid(SURROUND_MODES[surroundMode] || []);
-        if (currentSessionId) await updateSession({ channelRoles: channelRoles });
-    }
-
-    function updateMyRoleDisplay() {
-        const el = $('myRoleDisplay');
-        if (!currentSessionId || !myUserId) {
-            el.innerHTML = '<span class="no-role-msg">Join a session to be assigned a speaker channel role.</span>';
-            myChannelRole = null; return;
-        }
-        myChannelRole = channelRoles[myUserId] || null;
-        if (myChannelRole) {
-            el.innerHTML = '<div style="margin-bottom:12px">Your channel role: <span class="my-role-badge">\uD83D\uDD0A ' + escapeHtml(myChannelRole) + '</span></div>';
-        } else {
-            el.innerHTML = '<div style="margin-bottom:12px"><span class="no-role-msg">No channel role assigned yet. The host will assign roles.</span></div>';
-        }
     }
 
     function renderParticipantList() {
         const list = $('participantList');
         const items = Object.entries(participants).map(function(e) {
             const uid = e[0]; const p = e[1];
-            const role = channelRoles[uid] || '';
             return '<div class="participant-chip">' +
                 '<span class="dot"></span>' +
                 escapeHtml(p.nickname) + (uid === myUserId ? ' (you)' : '') +
-                (role ? ' <span class="role-tag">' + escapeHtml(role) + '</span>' : '') +
                 '</div>';
         });
         list.innerHTML = items.length ? items.join('') :
             '<span style="color:var(--text-dim);font-size:.83em">No participants yet.</span>';
     }
 
-    async function refreshAudioOutputDevices() {
-        try {
-            await navigator.mediaDevices.getUserMedia({ audio: true })
-                .then(function(s){ s.getTracks().forEach(function(t){ t.stop(); }); })
-                .catch(function(){});
-            const devices = await navigator.mediaDevices.enumerateDevices();
-            audioOutputDevices = devices.filter(function(d){ return d.kind === 'audiooutput'; });
-        } catch (_) { audioOutputDevices = []; }
-    }
-
     // ══════════════════════════════════════════════════════════════════
-    // 11. LOCAL AUDIO SHARING  (WebRTC + Firestore signalling)
-    // ══════════════════════════════════════════════════════════════════
-    async function startLocalAudioShare() {
-        if (!currentSessionId || !isHost) return;
-        try {
-            localAudioStream = await navigator.mediaDevices.getDisplayMedia({
-                audio: { echoCancellation: false, noiseSuppression: false, sampleRate: 48000 },
-                video: false
-            });
-        } catch (_) {
-            try {
-                localAudioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            } catch (err) {
-                setStatus('Could not access audio: ' + err.message, 'error'); return;
-            }
-        }
-        localAudioStream.getAudioTracks()[0].onended = function(){ stopLocalAudioShare(); };
-        $('startShareBtn').style.display = 'none';
-        $('stopShareBtn').style.display  = '';
-        var statusEl = $('hostShareStatus');
-        statusEl.className   = 'share-status active-share';
-        statusEl.textContent = '\uD83D\uDD34 Sharing audio live\u2026';
-        await db.collection('sessions').doc(currentSessionId)
-                .update({ audioShare: { active: true, hostId: myUserId, startedAt: Date.now() } });
-        for (var peerId of Object.keys(participants)) {
-            if (peerId !== myUserId) await createOffer(peerId);
-        }
-        setStatus('Sharing audio \u2013 other devices will receive the stream.', 'success');
-    }
-
-    async function stopLocalAudioShare() {
-        if (localAudioStream) {
-            localAudioStream.getTracks().forEach(function(t){ t.stop(); });
-            localAudioStream = null;
-        }
-        closeAllPeerConnections();
-        $('startShareBtn').style.display = '';
-        $('stopShareBtn').style.display  = 'none';
-        var statusEl = $('hostShareStatus');
-        statusEl.className   = 'share-status';
-        statusEl.textContent = 'Not sharing';
-        if (currentSessionId) {
-            try {
-                await db.collection('sessions').doc(currentSessionId)
-                        .update({ audioShare: { active: false, hostId: null } });
-            } catch (_) {}
-        }
-    }
-
-    function getRtcConfig() {
-        return { iceServers: [
-            { urls: 'stun:stun.l.google.com:19302' },
-            { urls: 'stun:stun1.l.google.com:19302' }
-        ]};
-    }
-
-    async function createOffer(peerId) {
-        if (peerConnections[peerId]) return;
-        var pc = new RTCPeerConnection(getRtcConfig());
-        peerConnections[peerId] = pc;
-        if (localAudioStream) {
-            localAudioStream.getAudioTracks().forEach(function(track){
-                pc.addTrack(track, localAudioStream);
-            });
-        }
-        var sigRef = db.collection('sessions').doc(currentSessionId)
-                       .collection('signals').doc(peerId);
-        pc.onicecandidate = async function(ev) {
-            if (!ev.candidate) return;
-            await sigRef.update({
-                hostCandidates: firebase.firestore.FieldValue.arrayUnion(ev.candidate.toJSON())
-            }).catch(function() {
-                sigRef.set({ hostCandidates: [ev.candidate.toJSON()] }, { merge: true });
-            });
-        };
-        var offer = await pc.createOffer();
-        await pc.setLocalDescription(offer);
-        await sigRef.set({ offer: { type: offer.type, sdp: offer.sdp }, hostCandidates: [], guestCandidates: [] }, { merge: true });
-        sigRef.onSnapshot(async function(snap) {
-            var d = snap.data();
-            if (!d) return;
-            if (d.answer && pc.signalingState === 'have-local-offer') {
-                await pc.setRemoteDescription(new RTCSessionDescription(d.answer));
-            }
-            if (d.guestCandidates) {
-                for (var c of d.guestCandidates) {
-                    try { await pc.addIceCandidate(new RTCIceCandidate(c)); } catch (_) {}
-                }
-            }
-        });
-    }
-
-    async function listenForRtcOffer() {
-        if (!currentSessionId || !myUserId || rtcListener) return;
-        var sigRef = db.collection('sessions').doc(currentSessionId)
-                       .collection('signals').doc(myUserId);
-        rtcListener = sigRef.onSnapshot(async function(snap) {
-            var d = snap.data();
-            if (!d || !d.offer) return;
-            if (peerConnections[myUserId]) return;
-            var pc = new RTCPeerConnection(getRtcConfig());
-            peerConnections[myUserId] = pc;
-            pc.ontrack = function(event) { receiveRemoteAudioStream(event.streams[0]); };
-            pc.onicecandidate = async function(ev) {
-                if (!ev.candidate) return;
-                await sigRef.update({
-                    guestCandidates: firebase.firestore.FieldValue.arrayUnion(ev.candidate.toJSON())
-                }).catch(function() {
-                    sigRef.set({ guestCandidates: [ev.candidate.toJSON()] }, { merge: true });
-                });
-            };
-            await pc.setRemoteDescription(new RTCSessionDescription(d.offer));
-            if (d.hostCandidates) {
-                for (var c of d.hostCandidates) {
-                    try { await pc.addIceCandidate(new RTCIceCandidate(c)); } catch (_) {}
-                }
-            }
-            var answer = await pc.createAnswer();
-            await pc.setLocalDescription(answer);
-            await sigRef.update({ answer: { type: answer.type, sdp: answer.sdp } });
-        });
-    }
-
-    function receiveRemoteAudioStream(stream) {
-        var list  = $('remoteAudioList');
-        var id    = 'remote-' + Date.now();
-        var audio = document.createElement('audio');
-        audio.srcObject = stream;
-        document.body.appendChild(audio);
-        remoteAudios[id] = audio;
-        var playPromise = audio.play();
-        if (playPromise !== undefined) {
-            playPromise.catch(function() {
-                // Autoplay blocked — add a click-to-play button
-                var playBtn = document.createElement('button');
-                playBtn.className = 'btn-primary';
-                playBtn.style.marginTop = '8px';
-                playBtn.textContent = '\u25b6 Click to play audio stream';
-                playBtn.onclick = function() { audio.play(); playBtn.remove(); };
-                list.appendChild(playBtn);
-            });
-        }
-        var deviceOptions = audioOutputDevices.length
-            ? audioOutputDevices.map(function(d){
-                return '<option value="' + d.deviceId + '">' + escapeHtml(d.label || d.deviceId.slice(0,14)) + '</option>';
-              }).join('')
-            : '';
-        var item = document.createElement('div');
-        item.className = 'remote-audio-item';
-        item.id = id + '-item';
-        item.innerHTML =
-            '<span class="material-icons">spatial_audio</span>' +
-            '<span>Host audio stream</span>' +
-            '<select onchange="setRemoteAudioOutput(\'' + id + '\', this.value)" title="Output device">' +
-            '<option value="">Default output</option>' + deviceOptions + '</select>';
-        list.innerHTML = '';
-        list.appendChild(item);
-        var statusEl = $('hostShareStatus');
-        if (statusEl) {
-            statusEl.className   = 'share-status receiving';
-            statusEl.textContent = '\uD83D\uDCF6 Receiving audio stream';
-        }
-    }
-
-    async function setRemoteAudioOutput(audioId, deviceId) {
-        var audio = remoteAudios[audioId];
-        if (!audio) return;
-        if (typeof audio.setSinkId === 'function') {
-            try { await audio.setSinkId(deviceId); } catch (err) { console.warn('setSinkId:', err); }
-        }
-    }
-
-    function closeAllPeerConnections() {
-        Object.values(peerConnections).forEach(function(pc){ try { pc.close(); } catch (_) {} });
-        peerConnections = {};
-        Object.values(remoteAudios).forEach(function(a){ try { a.pause(); a.srcObject = null; } catch (_) {} });
-        remoteAudios = {};
-        if (rtcListener) { rtcListener(); rtcListener = null; }
-    }
-
-    // ══════════════════════════════════════════════════════════════════
-    // 12. VIRTUAL AUDIO DRIVER DOWNLOAD (info placeholder)
+    // 11. VIRTUAL AUDIO DRIVER DOWNLOAD (info placeholder)
     // ══════════════════════════════════════════════════════════════════
     function downloadDriver(os) {
         var msgs = {
-            windows: 'The AuraSync Virtual Audio Driver for Windows is coming soon.\n\nIn the meantime:\n1. Install VB-Cable from vb-audio.com (free)\n2. Set "CABLE Input (VB-Audio Virtual Cable)" as your default playback device\n3. In AuraSync, click the "\u25b6 Share Audio" button — when prompted, choose "Share entire screen" and tick "Share system audio"',
-            mac:     'The AuraSync Virtual Audio Driver for macOS is coming soon.\n\nIn the meantime:\n1. Install BlackHole 2ch (free) from existential.audio/blackhole\n2. Set "BlackHole 2ch" as your system audio output in System Preferences > Sound\n3. In AuraSync, click the "\u25b6 Share Audio" button — BlackHole will appear as a capture source',
-            linux:   'On Linux with PulseAudio:\n1. Create a null-sink:\n   pactl load-module module-null-sink sink_name=aurasync sink_properties=device.description=AuraSync\n2. Route your app audio to the "AuraSync" sink in the audio mixer\n3. In AuraSync, click the "\u25b6 Share Audio" button and select the AuraSync monitor as your capture source'
+            windows: 'The AuraSync Virtual Audio Driver for Windows is coming soon.\n\nIn the meantime:\n1. Install VB-Cable from vb-audio.com (free)\n2. Set "CABLE Input (VB-Audio Virtual Cable)" as your default playback device\n3. Audio routed to this virtual device will stream to your session automatically.',
+            mac:     'The AuraSync Virtual Audio Driver for macOS is coming soon.\n\nIn the meantime:\n1. Install BlackHole 2ch (free) from existential.audio/blackhole\n2. Set "BlackHole 2ch" as your system audio output in System Preferences > Sound\n3. Audio routed through BlackHole will stream to your session automatically.',
+            linux:   'On Linux with PulseAudio:\n1. Create a null-sink:\n   pactl load-module module-null-sink sink_name=aurasync sink_properties=device.description=AuraSync\n2. Route your app audio to the "AuraSync" sink in the audio mixer\n3. Audio routed to the AuraSync sink will stream to your session automatically.'
         };
         alert(msgs[os] || 'Coming soon!');
     }
@@ -1577,7 +1196,6 @@
     window.addEventListener('beforeunload', function() {
         if (sessionListener) sessionListener();
         if (syncInterval)    clearInterval(syncInterval);
-        closeAllPeerConnections();
     });
     </script>
 </body>
