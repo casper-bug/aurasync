@@ -822,6 +822,12 @@
         ytPlayer.setVolume(parseInt($('volumeSlider').value));
         syncInterval = setInterval(updateProgress, 1000);
         setStatus('YouTube player ready. Create or join a session to start.', 'success');
+        // If we joined a session before the player was ready, sync the existing state now
+        if (currentSessionId && !isHost) {
+            db.collection('sessions').doc(currentSessionId).get().then(doc => {
+                if (doc.exists) syncWithSession(doc.data());
+            }).catch(err => console.error('onPlayerReady sync error:', err));
+        }
     }
 
     function onPlayerStateChange(event) {
