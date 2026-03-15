@@ -648,6 +648,7 @@
     let playerReady        = false;
     let syncInterval       = null;
     let availableRates     = [1];   // cached from ytPlayer.getAvailablePlaybackRates()
+    let lastAttemptedTrackIndex = -1; // index of the last track for which loadVideoById was called
 
     // Surround
     let surroundMode       = 'stereo';
@@ -739,6 +740,11 @@
         };
         const detail = errorMessages[event.data] || 'The video may be restricted or unavailable.';
         setStatus('YouTube player error (code ' + event.data + '). ' + detail, 'error');
+        // For unplayable videos, automatically skip to the next track so the
+        // session does not get stuck on a restricted or missing video.
+        if (isHost && playlist.length > 1 && [100, 101, 150].includes(event.data)) {
+            setTimeout(function () { nextTrack(); }, 2000);
+        }
     }
 
     // ══════════════════════════════════════════════════════════════════
@@ -818,6 +824,7 @@
                           .collection('participants').doc(myUserId).delete(); } catch (_) {}
         }
         currentSessionId = null; isHost = false; playlist = []; participants = {};
+        lastAttemptedTrackIndex = -1;
         if (ytPlayer && playerReady) ytPlayer.pauseVideo();
         disableControls();
         $('currentSession').textContent = '';
@@ -870,14 +877,18 @@
                 updatePlaylistUI();
             }
             const playerState = ytPlayer ? ytPlayer.getPlayerState() : -1;
-            const noVideoLoaded = playerState === -1; // YT.PlayerState.UNSTARTED — player is empty
+            // Clamp to a valid index in case of a Firestore race where currentTrack and
+            // playlist arrive in separate writes (faster heartbeat increases this window).
+            const targetTrackIndex = (data.currentTrack >= 0 && data.currentTrack < playlist.length)
+                ? data.currentTrack : 0;
+            // noVideoLoaded: true only when the player is unstarted AND we have not yet attempted
+            // to load the target track. Using lastAttemptedTrackIndex instead of bare
+            // playerState === -1 prevents repeatedly calling loadVideoById after a YouTube
+            // player error that keeps the state at UNSTARTED (-1) indefinitely.
+            const noVideoLoaded = playerState === -1 && lastAttemptedTrackIndex !== targetTrackIndex;
             if ((data.currentTrack !== currentTrackIndex || noVideoLoaded) && playlist.length > 0) {
-                // Clamp to a valid index in case of a Firestore race where currentTrack and
-                // playlist arrive in separate writes (faster heartbeat increases this window).
-                const trackIndex = (data.currentTrack >= 0 && data.currentTrack < playlist.length)
-                    ? data.currentTrack : 0;
-                currentTrackIndex = trackIndex;
-                loadTrack(trackIndex, false);
+                currentTrackIndex = targetTrackIndex;
+                loadTrack(targetTrackIndex, false);
                 await sleep(500);
             }
             // If the player still has no video loaded (empty playlist, out-of-bounds track, or
@@ -954,6 +965,7 @@
         currentTrackIndex = index;
         const track = playlist[index];
         if (!track || !track.videoId) return;  // guard against missing/empty videoId → YT error code 2
+        lastAttemptedTrackIndex = index;        // record attempt before calling the API
         ytPlayer.loadVideoById(track.videoId);
         $('currentTrackTitle').textContent = track.title;
         $('trackDetails').textContent = track.artist + '  \u00b7  ' + track.duration;
