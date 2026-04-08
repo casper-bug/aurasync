@@ -122,23 +122,12 @@
             z-index: 1000; display: flex; align-items: center; gap: 6px;
             transition: all .4s;
         }
-        .connection-status .conn-dot {
-            width: 7px; height: 7px; border-radius: 50%;
-        }
-        .connected    {
-            background: rgba(78,205,196,.12); color: var(--accent2);
-            border: 1px solid rgba(78,205,196,.25);
-        }
+        .connection-status .conn-dot { width: 7px; height: 7px; border-radius: 50%; }
+        .connected    { background: rgba(78,205,196,.12); color: var(--accent2); border: 1px solid rgba(78,205,196,.25); }
         .connected .conn-dot    { background: var(--accent2); box-shadow: 0 0 6px var(--accent2); animation: pulse 2s infinite; }
-        .disconnected {
-            background: rgba(255,107,107,.12); color: var(--accent1);
-            border: 1px solid rgba(255,107,107,.25);
-        }
+        .disconnected { background: rgba(255,107,107,.12); color: var(--accent1); border: 1px solid rgba(255,107,107,.25); }
         .disconnected .conn-dot { background: var(--accent1); }
-        .auth-error   {
-            background: rgba(255,107,107,.12); color: var(--accent1);
-            border: 1px solid rgba(255,107,107,.25);
-        }
+        .auth-error   { background: rgba(255,107,107,.12); color: var(--accent1); border: 1px solid rgba(255,107,107,.25); }
         .auth-error .conn-dot   { background: var(--accent1); }
         @keyframes pulse {
             0%, 100% { opacity: 1; }
@@ -193,41 +182,56 @@
         }
         #currentSession:empty::before { display: none; }
 
-        /* ── Player ── */
-        #player { width: 100%; height: 300px; border-radius: var(--radius-md); margin-bottom: 20px; }
+        /* ── Broadcast card ── */
+        .btn-source {
+            display: inline-flex; align-items: center; gap: 8px;
+            padding: 11px 20px; border-radius: var(--radius-sm);
+            border: 1px solid var(--glass-bd-h);
+            background: rgba(255,255,255,.07); color: var(--text);
+            font-family: inherit; font-size: .88em; font-weight: 600;
+            cursor: pointer; transition: all .22s;
+        }
+        .btn-source:hover:not(:disabled) { background: rgba(255,255,255,.14); border-color: var(--accent2); transform: translateY(-1px); }
+        .btn-source:active:not(:disabled) { transform: translateY(0); }
+        .btn-source.active {
+            background: linear-gradient(135deg, rgba(78,205,196,.18), rgba(167,139,250,.18));
+            border-color: var(--accent2); color: var(--accent2);
+            box-shadow: 0 0 0 2px rgba(78,205,196,.15);
+        }
+        .btn-source:disabled { opacity: .4; cursor: not-allowed; }
 
-        /* ── Transport controls ── */
-        .controls {
-            display: flex; align-items: center; justify-content: center;
-            gap: 12px; margin-bottom: 18px;
+        .live-badge {
+            display: inline-flex; align-items: center; gap: 5px;
+            background: rgba(255,107,107,.15); border: 1px solid rgba(255,107,107,.35);
+            border-radius: 20px; padding: 4px 11px;
+            font-size: .75em; font-weight: 700; letter-spacing: .05em; color: var(--accent1);
         }
-        .control-btn {
-            background: rgba(255,255,255,0.07); border: 1px solid var(--glass-bd);
-            color: var(--text); padding: 13px; border-radius: 50%; cursor: pointer;
-            display: flex; align-items: center; justify-content: center;
-            transition: all .22s; box-shadow: var(--shadow-sm);
+        .live-badge .live-dot {
+            width: 7px; height: 7px; border-radius: 50%; background: var(--accent1);
+            animation: pulse 1.4s infinite;
         }
-        .control-btn:hover:not(:disabled) {
-            background: rgba(255,255,255,0.13); border-color: var(--glass-bd-h);
-            transform: translateY(-2px); box-shadow: var(--shadow);
-        }
-        .control-btn:active:not(:disabled) { transform: translateY(0) scale(.95); }
-        .control-btn:disabled { opacity: .35; cursor: not-allowed; }
-        .control-btn .material-icons { font-size: 22px; }
-        .play-btn {
-            padding: 16px !important;
-            background: linear-gradient(135deg, var(--accent1), var(--accent3)) !important;
-            border: none !important;
-            box-shadow: 0 6px 24px rgba(255,107,107,.4) !important;
-        }
-        .play-btn:hover:not(:disabled) {
-            box-shadow: 0 8px 30px rgba(255,107,107,.55) !important;
-            filter: brightness(1.08);
-        }
-        .play-btn .material-icons { font-size: 28px !important; }
 
-        /* ── Sliders ── */
-        .slider-container { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+        .listening-badge {
+            display: inline-flex; align-items: center; gap: 5px;
+            background: rgba(78,205,196,.12); border: 1px solid rgba(78,205,196,.28);
+            border-radius: 20px; padding: 4px 11px;
+            font-size: .75em; font-weight: 700; letter-spacing: .05em; color: var(--accent2);
+        }
+        .listening-badge .listen-dot {
+            width: 7px; height: 7px; border-radius: 50%; background: var(--accent2);
+            animation: pulse 2s infinite;
+        }
+
+        .stream-info-row {
+            display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+            padding: 12px 16px; background: rgba(255,255,255,.04);
+            border-radius: var(--radius-md); border: 1px solid var(--glass-bd);
+            margin-top: 14px;
+        }
+        .listener-count { font-size: .82em; color: var(--text-muted); font-weight: 500; }
+
+        /* ── Volume slider (guest) ── */
+        .slider-container { display: flex; align-items: center; gap: 12px; margin-top: 12px; }
         .slider {
             flex: 1; height: 4px;
             background: rgba(255,255,255,0.12);
@@ -248,88 +252,12 @@
             background: linear-gradient(135deg, var(--accent1), var(--accent3));
             border-radius: 50%; border: none; cursor: pointer;
         }
-        .slider:disabled { opacity: .35; cursor: not-allowed; }
         .volume-slider { max-width: 120px; }
-        .time-display {
-            min-width: 40px; text-align: center; font-size: 12px;
-            font-weight: 600; color: var(--text-muted); font-variant-numeric: tabular-nums;
+        .volume-label {
+            min-width: 34px; text-align: right; font-size: 12px;
+            font-weight: 600; color: var(--text-muted);
         }
         .slider-icon { font-size: 18px !important; opacity: .55; }
-
-        /* ── Track info ── */
-        .track-info-card {
-            display: flex; align-items: center; gap: 18px;
-        }
-        .track-art {
-            width: 64px; height: 64px; border-radius: var(--radius-md); flex-shrink: 0;
-            background: linear-gradient(135deg, rgba(167,139,250,.25), rgba(78,205,196,.2));
-            border: 1px solid var(--glass-bd);
-            display: flex; align-items: center; justify-content: center;
-            font-size: 28px; overflow: hidden;
-        }
-        .track-art img { width: 100%; height: 100%; object-fit: cover; border-radius: var(--radius-md); }
-        .track-text { flex: 1; min-width: 0; }
-        .track-text h3 {
-            margin: 0 0 4px; font-size: 1em; font-weight: 600;
-            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-        }
-        .track-text p { margin: 0; color: var(--text-muted); font-size: .84em; font-weight: 400; }
-
-        /* ── Add track ── */
-        .add-track-form { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
-        .add-track-form input {
-            flex: 1; padding: 11px 15px; min-width: 220px;
-            border: 1px solid var(--glass-bd);
-            background: rgba(255,255,255,0.07); color: var(--text);
-            border-radius: var(--radius-sm); font-family: inherit; font-size: .88em;
-            outline: none; transition: border-color .25s, box-shadow .25s;
-        }
-        .add-track-form input:focus {
-            border-color: var(--accent2); box-shadow: 0 0 0 3px rgba(78,205,196,.12);
-        }
-        .add-track-form input::placeholder { color: var(--text-dim); }
-        .add-track-form button {
-            padding: 11px 20px; border: none;
-            background: linear-gradient(135deg, #3ecf8e, #1aaa6b);
-            color: white; border-radius: var(--radius-sm); cursor: pointer;
-            font-weight: 600; font-family: inherit; font-size: .88em;
-            transition: all .22s; white-space: nowrap;
-        }
-        .add-track-form button:hover { transform: translateY(-1px); filter: brightness(1.1); box-shadow: 0 6px 20px rgba(62,207,142,.3); }
-        .add-track-form button:active { transform: translateY(0); }
-
-        /* ── Playlist ── */
-        .track-item {
-            padding: 11px 14px; margin: 6px 0;
-            background: rgba(255,255,255,0.045);
-            border-radius: var(--radius-md); cursor: pointer;
-            transition: all .22s; display: flex;
-            justify-content: space-between; align-items: center;
-            border: 1px solid transparent;
-            gap: 10px;
-        }
-        .track-item:hover { background: rgba(255,255,255,0.1); border-color: var(--glass-bd); transform: translateX(3px); }
-        .track-item.active {
-            background: linear-gradient(135deg, rgba(255,107,107,.12), rgba(167,139,250,.12));
-            border-color: rgba(255,107,107,.3);
-        }
-        .track-item.active .track-num { color: var(--accent1); }
-        .track-item.disabled { cursor: not-allowed; opacity: .55; }
-        .track-num {
-            font-size: .78em; font-weight: 700; color: var(--text-dim);
-            min-width: 22px; text-align: center; font-variant-numeric: tabular-nums;
-        }
-        .track-item-info { flex: 1; min-width: 0; }
-        .track-item-info strong { display: block; font-size: .9em; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .track-item-info small  { color: var(--text-muted); font-size: .78em; font-weight: 400; }
-        .track-duration { color: var(--text-dim); font-size: 11px; font-weight: 600; margin-right: 8px; white-space: nowrap; font-variant-numeric: tabular-nums; }
-        .remove-track {
-            background: rgba(255,107,107,.12); border: 1px solid rgba(255,107,107,.2);
-            color: var(--accent1); padding: 5px 8px; border-radius: 6px;
-            cursor: pointer; font-size: 14px; line-height: 1;
-            transition: all .2s; display: flex; align-items: center;
-        }
-        .remove-track:hover { background: rgba(255,107,107,.25); transform: scale(1.1); }
 
         /* ── Surround Sound ── */
         .surround-mode-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
@@ -374,11 +302,6 @@
             transform: translate(-50%,-50%); font-size: 26px; opacity: .4;
         }
 
-        /* Channel grid */
-
-        /* Role badge */
-        .no-role-msg { color: var(--text-dim); font-size: .83em; }
-
         /* Participants */
         .participant-list { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 8px; }
         .participant-chip {
@@ -393,16 +316,8 @@
         }
 
         /* ── Hint / helper text ── */
-        .hint-text {
-            margin: 0; font-size: .78em; color: var(--text-dim); line-height: 1.5;
-        }
-        .section-hint {
-            margin: 0 0 9px; font-size: .78em; color: var(--text-dim); font-weight: 500;
-        }
-        .volume-label {
-            min-width: 34px; text-align: right; font-size: 12px;
-            font-weight: 600; color: var(--text-muted);
-        }
+        .hint-text { margin: 0; font-size: .78em; color: var(--text-dim); line-height: 1.5; }
+        .section-hint { margin: 0 0 9px; font-size: .78em; color: var(--text-dim); font-weight: 500; }
 
         /* ── Virtual Driver ── */
         .vad-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
@@ -457,11 +372,11 @@
             <div class="logo-icon">&#127925;</div>
             <h1>AuraSync</h1>
         </div>
-        <p>Synchronized Multi-Device Music &amp; Surround Sound</p>
+        <p>Live Audio Broadcast &amp; Surround Sound</p>
     </div>
 
     <!-- Status bar -->
-    <div id="status">Initializing player&#8230;</div>
+    <div id="status">Connecting&#8230;</div>
 
     <!-- Session controls -->
     <div class="session-controls">
@@ -472,63 +387,76 @@
     </div>
     <div class="current-session" id="currentSession"></div>
 
-    <!-- YouTube Player + transport controls -->
+    <!-- ══ Broadcast ══ -->
     <div class="card">
-        <div id="player"></div>
-        <div class="controls">
-            <button class="control-btn" id="prevBtn" onclick="previousTrack()" disabled>
-                <span class="material-icons">skip_previous</span>
-            </button>
-            <button class="control-btn play-btn" id="playPauseBtn" onclick="togglePlayPause()" disabled>
-                <span class="material-icons">play_arrow</span>
-            </button>
-            <button class="control-btn" id="nextBtn" onclick="nextTrack()" disabled>
-                <span class="material-icons">skip_next</span>
-            </button>
-        </div>
-        <div class="slider-container">
-            <span class="time-display" id="currentTime">0:00</span>
-            <input type="range" class="slider" id="progressSlider" min="0" max="100" value="0" disabled>
-            <span class="time-display" id="duration">0:00</span>
-        </div>
-        <div class="slider-container">
-            <span class="material-icons slider-icon">volume_up</span>
-            <input type="range" class="slider volume-slider" id="volumeSlider" min="0" max="100" value="50" disabled>
-            <span id="volumePercent" class="volume-label">50%</span>
-        </div>
-    </div>
+        <h3>
+            <span class="card-icon">&#128225;</span> Live Broadcast
+            <span id="liveBadge" style="display:none;margin-left:auto">
+                <span class="live-badge"><span class="live-dot"></span>LIVE</span>
+            </span>
+        </h3>
 
-    <!-- Current track info -->
-    <div class="card track-info-card">
-        <div class="track-art" id="trackArt">&#127925;</div>
-        <div class="track-text">
-            <h3 id="currentTrackTitle">No track selected</h3>
-            <p id="trackDetails">Create or join a session to start playing music</p>
+        <!-- No session state -->
+        <div id="broadcastNoSession">
+            <p class="hint-text">Create or join a session to start broadcasting or listening.</p>
         </div>
-    </div>
 
-    <!-- Playlist -->
-    <div class="card">
-        <h3><span class="card-icon">&#127925;</span> Playlist <span id="playlistCount" style="font-weight:400;opacity:.5;font-size:.9em">(0 tracks)</span></h3>
-        <div id="playlistContainer">
-            <p style="color:var(--text-dim);text-align:center;padding:24px 0;font-size:.88em">
-                No tracks yet &#8212; paste a YouTube URL in the <em>Add Music</em> section below to get started!
-            </p>
+        <!-- Host view -->
+        <div id="broadcastHostView" style="display:none">
+            <p class="section-hint">Choose an audio source to broadcast to all connected devices:</p>
+            <div style="display:flex;gap:10px;flex-wrap:wrap">
+                <button class="btn-source" id="btnSystem" onclick="startStreaming('system')">
+                    <span class="material-icons" style="font-size:18px;vertical-align:middle">computer</span>
+                    System Audio
+                </button>
+                <button class="btn-source" id="btnMic" onclick="startStreaming('mic')">
+                    <span class="material-icons" style="font-size:18px;vertical-align:middle">mic</span>
+                    Microphone
+                </button>
+            </div>
+            <div id="hostStreamInfo" style="display:none">
+                <div class="stream-info-row">
+                    <span id="hostSourceLabel" style="font-size:.88em;font-weight:600;color:var(--accent2)"></span>
+                    <span class="listener-count" id="listenerCount"></span>
+                    <button class="btn-outline" onclick="stopStreaming()"
+                            style="color:var(--accent1);border-color:rgba(255,107,107,.28);margin-left:auto">
+                        <span class="material-icons" style="font-size:14px;vertical-align:middle">stop</span>
+                        Stop Broadcast
+                    </button>
+                </div>
+                <p class="hint-text" style="margin-top:10px">
+                    &#128161; <strong>System Audio tip:</strong> a screen-share dialog will appear &#8212;
+                    select any window or tab and tick <strong>&#8220;Share audio&#8221;</strong> before confirming.
+                </p>
+            </div>
         </div>
-    </div>
 
-    <!-- Add track -->
-    <div class="card">
-        <h3><span class="card-icon">&#10133;</span> Add Music from YouTube</h3>
-        <div class="add-track-form">
-            <input type="text" id="youtubeUrl"
-                   placeholder="Paste a YouTube URL &#8212; e.g. https://www.youtube.com/watch?v=dQw4w9WgXcQ">
-            <button onclick="addTrackFromYoutube()">Add Track</button>
+        <!-- Guest view -->
+        <div id="broadcastGuestView" style="display:none">
+            <div id="guestWaiting">
+                <p class="hint-text" style="display:flex;align-items:center;gap:8px">
+                    <span class="material-icons" style="font-size:18px;opacity:.45">hourglass_empty</span>
+                    Waiting for the host to start a broadcast&hellip;
+                </p>
+            </div>
+            <div id="guestReady" style="display:none">
+                <button class="btn-source" id="btnListen" onclick="activateListening()">
+                    <span class="material-icons" style="font-size:18px;vertical-align:middle">headphones</span>
+                    Tap to Listen
+                </button>
+                <div id="guestListeningInfo" style="display:none;margin-top:14px">
+                    <span class="listening-badge"><span class="listen-dot"></span>Listening Live</span>
+                    <div class="slider-container">
+                        <span class="material-icons slider-icon">volume_up</span>
+                        <input type="range" class="slider volume-slider" id="guestVolumeSlider" min="0" max="100" value="80">
+                        <span class="volume-label" id="guestVolumePercent">80%</span>
+                    </div>
+                </div>
+            </div>
         </div>
-        <p class="hint-text">
-            Supports youtube.com/watch?v=&#8230; and youtu.be/&#8230; links.
-            Real video titles are fetched automatically via oEmbed.
-        </p>
+
+        <!-- Hidden audio output for guests -->
+        <audio id="remoteAudio" autoplay playsinline style="display:none"></audio>
     </div>
 
     <!-- ══ Surround Sound Configuration ══ -->
@@ -598,7 +526,7 @@
     <!-- ════════════════════════════════════════════════════════════════
          APPLICATION SCRIPT
          All JavaScript lives in one top-level script block.
-         External scripts (Firebase, YouTube API) are loaded in <head>.
+         External scripts (Firebase) are loaded in <head>.
     ═══════════════════════════════════════════════════════════════════ -->
     <script>
     // ══════════════════════════════════════════════════════════════════
@@ -622,6 +550,7 @@
             connectionStatus.className = 'connection-status connected';
             connectionStatus.innerHTML = '<span class="conn-dot"></span> Connected';
             myUserId = auth.currentUser.uid;
+            setStatus('Ready. Create or join a session to start.', 'success');
         })
         .catch(err => {
             connectionStatus.className = 'connection-status auth-error';
@@ -632,31 +561,33 @@
     // ══════════════════════════════════════════════════════════════════
     // 2.  GLOBAL STATE
     // ══════════════════════════════════════════════════════════════════
-    let myUserId           = null;
-    let myNickname         = 'Device\u00a0' + Math.random().toString(36).slice(2,5).toUpperCase();
-    let isHost             = false;
-    let currentSessionId   = null;
-    let sessionListener    = null;
-    let presenceListener   = null;
-    let currentTrackIndex  = 0;
-    let isUpdatingFromSync = false;
-    let syncUpdateTimeout  = null;
-    let playlist           = [];
-    let ytPlayer           = null;
-    let playerReady        = false;
-    let syncInterval       = null;
-    let availableRates     = [1];   // cached from ytPlayer.getAvailablePlaybackRates()
-    let lastAttemptedTrackIndex = -1; // index of the last track for which loadVideoById was called
+    let myUserId         = null;
+    let myNickname       = 'Device\u00a0' + Math.random().toString(36).slice(2,5).toUpperCase();
+    let isHost           = false;
+    let currentSessionId = null;
+    let sessionListener  = null;
+    let presenceListener = null;
+    let participants     = {};   // { userId: { nickname, joinedAt } }
+    let surroundMode     = 'stereo';
+    let hostIsStreaming   = false;  // tracks remote isStreaming state for guests
 
-    // Surround
-    let surroundMode       = 'stereo';
-    let participants       = {};   // { userId: { nickname, joinedAt } }
+    // ── Host streaming state ──
+    let localStream     = null;
+    let isStreaming     = false;
+    // peerConnections: { clientId: { pc, hostCandidates[], unsubSignal } }
+    let peerConnections = {};
 
-    // Sync drift correction thresholds (seconds).
-    // Seek to correct position when drift exceeds these values.
-    const SYNC_SEEK_ON_PLAY          = 0.3;  // used when playback state transitions to playing
-    const SYNC_SEEK_WHILE_PLAYING    = 0.5;  // used during continuous playback
-    const SYNC_RATE_ADJUST_THRESHOLD = 0.1;  // fast-forward if client is behind by this much
+    // ── Client listening state ──
+    let clientPc           = null;
+    let clientSignalUnsub  = null;
+    let hostCandsProcessed = 0;
+
+    const RTC_CONFIG = {
+        iceServers: [
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:stun1.l.google.com:19302' }
+        ]
+    };
 
     const SURROUND_MODES = {
         'stereo': [
@@ -691,62 +622,7 @@
     const $ = id => document.getElementById(id);
 
     // ══════════════════════════════════════════════════════════════════
-    // 3.  YOUTUBE PLAYER CALLBACKS
-    // ══════════════════════════════════════════════════════════════════
-    window.onYouTubeIframeAPIReady = function () {
-        ytPlayer = new YT.Player('player', {
-            height: '300', width: '100%',
-            playerVars: { autoplay: 0, controls: 0, disablekb: 1, modestbranding: 1, rel: 0, playsinline: 1 },
-            events: { onReady: onPlayerReady, onStateChange: onPlayerStateChange, onError: onPlayerError }
-        });
-    };
-
-    function onPlayerReady() {
-        playerReady = true;
-        ytPlayer.setVolume(parseInt($('volumeSlider').value));
-        availableRates = ytPlayer.getAvailablePlaybackRates ? ytPlayer.getAvailablePlaybackRates() : [1];
-        syncInterval = setInterval(updateProgress, 500);
-        setStatus('YouTube player ready. Create or join a session to start.', 'success');
-        // If we joined a session before the player was ready, sync the existing state now
-        if (currentSessionId && !isHost) {
-            db.collection('sessions').doc(currentSessionId).get().then(doc => {
-                if (doc.exists) syncWithSession(doc.data());
-            }).catch(err => console.error('onPlayerReady sync error:', err));
-        }
-    }
-
-    function onPlayerStateChange(event) {
-        if (isUpdatingFromSync) return;
-        if (event.data === YT.PlayerState.PLAYING) {
-            $('playPauseBtn').innerHTML = '<span class="material-icons">pause</span>';
-            if (isHost) updateSession({ isPlaying: true,  currentTime: ytPlayer.getCurrentTime(), lastUpdate: Date.now() });
-        } else if (event.data === YT.PlayerState.PAUSED) {
-            $('playPauseBtn').innerHTML = '<span class="material-icons">play_arrow</span>';
-            if (isHost) updateSession({ isPlaying: false, currentTime: ytPlayer.getCurrentTime(), lastUpdate: Date.now() });
-        } else if (event.data === YT.PlayerState.ENDED) {
-            if (isHost && playlist.length > 1) nextTrack();
-        }
-    }
-
-    function onPlayerError(event) {
-        const errorMessages = {
-            2:   'The video ID is invalid. Please check the URL and try again.',
-            5:   'The video cannot be played in an HTML5 player.',
-            100: 'The video was not found (it may have been removed or made private).',
-            101: 'The video owner does not allow it to be played in embedded players.',
-            150: 'The video owner does not allow it to be played in embedded players.'
-        };
-        const detail = errorMessages[event.data] || 'The video may be restricted or unavailable.';
-        setStatus('YouTube player error (code ' + event.data + '). ' + detail, 'error');
-        // For unplayable videos, automatically skip to the next track so the
-        // session does not get stuck on a restricted or missing video.
-        if (isHost && playlist.length > 1 && [100, 101, 150].includes(event.data)) {
-            setTimeout(function () { nextTrack(); }, 2000);
-        }
-    }
-
-    // ══════════════════════════════════════════════════════════════════
-    // 4.  STATUS HELPER
+    // 3.  STATUS HELPER
     // ══════════════════════════════════════════════════════════════════
     function setStatus(msg, type) {
         const el = $('status');
@@ -755,7 +631,7 @@
     }
 
     // ══════════════════════════════════════════════════════════════════
-    // 5.  SESSION MANAGEMENT
+    // 4.  SESSION MANAGEMENT
     // ══════════════════════════════════════════════════════════════════
     function generateSessionId() {
         return Math.random().toString(36).slice(2, 8).toUpperCase();
@@ -773,18 +649,20 @@
         isHost = true;
         try {
             await db.collection('sessions').doc(sessionId).set({
-                ownerId: myUserId, currentTrack: 0, isPlaying: false, currentTime: 0,
-                volume: 50, playlist: [], surroundMode: 'stereo',
-                created: firebase.firestore.FieldValue.serverTimestamp(), lastUpdate: Date.now()
+                ownerId:      myUserId,
+                isStreaming:  false,
+                surroundMode: 'stereo',
+                created:      firebase.firestore.FieldValue.serverTimestamp()
             });
             $('sessionId').value = sessionId;
             $('currentSession').textContent = 'Session: ' + sessionId + '  (Host)';
-            enableControls(true);
             await registerPresence(sessionId);
             startSessionListener(sessionId);
             initSurroundUI();
+            updateBroadcastUI();
             setStatus('Session ' + sessionId + ' created! Share this ID with other devices.', 'success');
         } catch (err) {
+            currentSessionId = null; isHost = false;
             setStatus('Error creating session: ' + err.message, 'error');
         }
     }
@@ -798,16 +676,20 @@
             if (!snap.exists) { setStatus('Session not found. Check the session ID.', 'error'); return; }
             const data = snap.data();
             currentSessionId = sessionId;
-            isHost = (data.ownerId === myUserId);
-            playlist     = data.playlist     || [];
-            surroundMode = data.surroundMode  || 'stereo';
+            isHost       = (data.ownerId === myUserId);
+            surroundMode = data.surroundMode || 'stereo';
             $('currentSession').textContent = 'Session: ' + sessionId + '  (' + (isHost ? 'Host' : 'Guest') + ')';
-            updatePlaylistUI();
-            enableControls(isHost);
             await registerPresence(sessionId);
             startSessionListener(sessionId);
             initSurroundUI();
-            await syncWithSession(data);
+            updateBroadcastUI();
+            // If the host is already streaming when we join, start listening immediately
+            if (!isHost && data.isStreaming) {
+                hostIsStreaming = true;
+                $('guestWaiting').style.display = 'none';
+                $('guestReady').style.display   = 'block';
+                subscribeToHostStream();
+            }
             setStatus('Joined session ' + sessionId, 'success');
         } catch (err) {
             setStatus('Error joining session: ' + err.message, 'error');
@@ -815,27 +697,27 @@
     }
 
     async function leaveSession() {
+        stopStreaming();
+        cleanupClientConnection();
         if (sessionListener)  { sessionListener();  sessionListener  = null; }
         if (presenceListener) { presenceListener(); presenceListener = null; }
         if (currentSessionId && myUserId) {
-            try { await db.collection('sessions').doc(currentSessionId)
-                          .collection('participants').doc(myUserId).delete(); } catch (_) {}
+            try {
+                await db.collection('sessions').doc(currentSessionId)
+                        .collection('participants').doc(myUserId).delete();
+            } catch (_) {}
         }
-        currentSessionId = null; isHost = false; playlist = []; participants = {};
-        lastAttemptedTrackIndex = -1;
-        if (ytPlayer && playerReady) ytPlayer.pauseVideo();
-        disableControls();
+        currentSessionId = null; isHost = false; participants = {};
+        hostIsStreaming = false;
         $('currentSession').textContent = '';
-        $('currentTrackTitle').textContent = 'No track selected';
-        $('trackDetails').textContent = 'Create or join a session to start playing music';
-        updatePlaylistUI();
+        updateBroadcastUI();
         renderSurroundLayout();
-        $('participantSection').style.display   = 'none';
-        $('surroundModeRow').style.display      = 'none';
+        $('participantSection').style.display = 'none';
+        $('surroundModeRow').style.display    = 'none';
         setStatus('Left session.');
     }
 
-    // Presence
+    // ── Presence ──
     async function registerPresence(sessionId) {
         if (!myUserId) return;
         const ref = db.collection('sessions').doc(sessionId).collection('participants').doc(myUserId);
@@ -846,11 +728,20 @@
                 participants = {};
                 snap.forEach(doc => { participants[doc.id] = doc.data(); });
                 renderParticipantList();
+                // When streaming, create connections for any new participant
+                if (isHost && isStreaming) {
+                    Object.keys(participants).forEach(clientId => {
+                        if (clientId !== myUserId && !peerConnections[clientId]) {
+                            createPeerConnectionForClient(clientId);
+                        }
+                    });
+                }
+                updateListenerCount();
             });
     }
 
     // ══════════════════════════════════════════════════════════════════
-    // 6.  SESSION LISTENER & SYNC
+    // 5.  SESSION LISTENER
     // ══════════════════════════════════════════════════════════════════
     function startSessionListener(sessionId) {
         if (sessionListener) sessionListener();
@@ -861,276 +752,272 @@
                 surroundMode = data.surroundMode;
                 renderSurroundLayout();
             }
-            if (!isHost) syncWithSession(data);
+            if (!isHost) {
+                if (data.isStreaming && !hostIsStreaming) {
+                    // Host just started streaming
+                    hostIsStreaming = true;
+                    $('guestWaiting').style.display = 'none';
+                    $('guestReady').style.display   = 'block';
+                    subscribeToHostStream();
+                } else if (!data.isStreaming && hostIsStreaming) {
+                    // Host stopped streaming
+                    hostIsStreaming = false;
+                    $('guestWaiting').style.display       = 'block';
+                    $('guestReady').style.display         = 'none';
+                    $('guestListeningInfo').style.display = 'none';
+                    $('btnListen').style.display          = 'inline-flex';
+                    $('liveBadge').style.display          = 'none';
+                    cleanupClientConnection();
+                    setStatus('Broadcast ended by host.');
+                }
+            }
         });
     }
 
-    async function syncWithSession(data) {
-        if (isUpdatingFromSync || !playerReady) return;
-        isUpdatingFromSync = true;
+    // ══════════════════════════════════════════════════════════════════
+    // 6.  HOST STREAMING  (WebRTC broadcaster)
+    // ══════════════════════════════════════════════════════════════════
+    async function startStreaming(sourceType) {
+        if (!currentSessionId || !isHost) return;
         try {
-            const remotePlaylist = data.playlist || [];
-            if (JSON.stringify(playlist) !== JSON.stringify(remotePlaylist)) {
-                playlist = remotePlaylist;
-                updatePlaylistUI();
+            if (sourceType === 'system') {
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
+                    setStatus('System audio capture is not supported in this browser. Use Chrome or Edge on desktop.', 'error');
+                    return;
+                }
+                setStatus('Opening screen-share dialog\u2026 select a window/tab and tick \u201cShare audio\u201d.', 'loading');
+                localStream = await navigator.mediaDevices.getDisplayMedia({ audio: true, video: true });
+                // Stop video tracks — we only need audio
+                localStream.getVideoTracks().forEach(t => t.stop());
+                if (localStream.getAudioTracks().length === 0) {
+                    setStatus('No audio track captured. Make sure to enable \u201cShare audio\u201d in the browser dialog.', 'error');
+                    localStream = null;
+                    return;
+                }
+            } else {
+                setStatus('Requesting microphone access\u2026', 'loading');
+                localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
             }
-            const playerState = ytPlayer ? ytPlayer.getPlayerState() : -1;
-            // Clamp to a valid index in case of a Firestore race where currentTrack and
-            // playlist arrive in separate writes (faster heartbeat increases this window).
-            const targetTrackIndex = (data.currentTrack >= 0 && data.currentTrack < playlist.length)
-                ? data.currentTrack : 0;
-            // noVideoLoaded: true only when the player is unstarted AND we have not yet attempted
-            // to load the target track. Using lastAttemptedTrackIndex instead of bare
-            // playerState === -1 prevents repeatedly calling loadVideoById after a YouTube
-            // player error that keeps the state at UNSTARTED (-1) indefinitely.
-            const noVideoLoaded = playerState === -1 && lastAttemptedTrackIndex !== targetTrackIndex;
-            if ((data.currentTrack !== currentTrackIndex || noVideoLoaded) && playlist.length > 0) {
-                currentTrackIndex = targetTrackIndex;
-                loadTrack(targetTrackIndex, false);
-                await sleep(500);
-            }
-            // If the player still has no video loaded (empty playlist, out-of-bounds track, or
-            // loadVideoById hasn't been called yet), skip all playback commands to avoid YT error 2.
-            if (!playlist.length || (ytPlayer && ytPlayer.getPlayerState() === -1)) return;
-            if (!isHost && data.volume !== undefined) {
-                const v = data.volume;
-                $('volumeSlider').value = v;
-                $('volumePercent').textContent = v + '%';
-                ytPlayer.setVolume(v);
-            }
-            // Compensate for time elapsed since host wrote the update, to reduce sync lag.
-            // NOTE: relies on client clocks being reasonably in sync (±1 s). Firestore
-            // server timestamps are not used here because they require an extra round-trip;
-            // Date.now() is accurate enough given the sub-second thresholds below.
-            const elapsed = (data.isPlaying && data.lastUpdate)
-                ? Math.max(0, (Date.now() - data.lastUpdate) / 1000)
-                : 0;
-            const targetTime = (data.currentTime || 0) + elapsed;
-            // Signed drift: positive when client is behind (targetTime > currentTime),
-            // negative when client is ahead (targetTime < currentTime).
-            const drift = targetTime - (ytPlayer.getCurrentTime() || 0);
-            if (data.isPlaying && ytPlayer.getPlayerState() !== YT.PlayerState.PLAYING) {
-                if (Math.abs(drift) > SYNC_SEEK_ON_PLAY) ytPlayer.seekTo(targetTime);
-                ytPlayer.playVideo();
-                ytPlayer.setPlaybackRate(1);
-            } else if (!data.isPlaying && ytPlayer.getPlayerState() === YT.PlayerState.PLAYING) {
-                ytPlayer.pauseVideo();
-                ytPlayer.setPlaybackRate(1);
-            } else if (data.isPlaying && Math.abs(drift) > SYNC_SEEK_WHILE_PLAYING) {
-                // Large drift – seek directly to the correct position.
-                ytPlayer.seekTo(targetTime);
-                ytPlayer.setPlaybackRate(1);
-            } else if (data.isPlaying && drift > SYNC_RATE_ADJUST_THRESHOLD && drift <= SYNC_SEEK_WHILE_PLAYING) {
-                // Small positive drift – client is slightly behind.
-                // Fast-forward at 1.25× to catch up without an audible jump.
-                ytPlayer.setPlaybackRate(availableRates.includes(1.25) ? 1.25 : 1);
-            } else if (data.isPlaying) {
-                // In sync – ensure normal playback rate.
-                ytPlayer.setPlaybackRate(1);
-            }
-        } catch (err) { console.error('syncWithSession error:', err); }
-        finally { setTimeout(() => { isUpdatingFromSync = false; }, 200); }
-    }
 
-    async function updateSession(updates) {
-        if (!isHost || !currentSessionId || isUpdatingFromSync) return;
-        if (syncUpdateTimeout) clearTimeout(syncUpdateTimeout);
-        syncUpdateTimeout = setTimeout(async () => {
-            try {
-                await db.collection('sessions').doc(currentSessionId)
-                        .update(Object.assign({}, updates, { lastUpdate: Date.now() }));
-            } catch (err) { console.error('updateSession error:', err); }
-        }, 100);
-    }
+            // If the user ends the share via the browser\u2019s native UI, auto-stop the broadcast
+            localStream.getTracks().forEach(track => { track.onended = () => stopStreaming(); });
 
-    // ══════════════════════════════════════════════════════════════════
-    // 7.  CONTROLS & PLAYBACK
-    // ══════════════════════════════════════════════════════════════════
-    function enableControls(host) {
-        document.querySelectorAll('.control-btn').forEach(b => b.disabled = !host);
-        $('progressSlider').disabled = !host;
-        $('volumeSlider').disabled   = false;
-    }
-    function disableControls() {
-        document.querySelectorAll('.control-btn').forEach(b => b.disabled = true);
-        $('progressSlider').disabled = true;
-        $('volumeSlider').disabled   = true;
-    }
+            isStreaming = true;
+            await db.collection('sessions').doc(currentSessionId).update({ isStreaming: true });
 
-    function loadTrack(index, broadcast) {
-        if (broadcast === undefined) broadcast = true;
-        if (index < 0 || index >= playlist.length || !playerReady) return;
-        currentTrackIndex = index;
-        const track = playlist[index];
-        if (!track || !track.videoId) return;  // guard against missing/empty videoId → YT error code 2
-        lastAttemptedTrackIndex = index;        // record attempt before calling the API
-        ytPlayer.loadVideoById(track.videoId);
-        $('currentTrackTitle').textContent = track.title;
-        $('trackDetails').textContent = track.artist + '  \u00b7  ' + track.duration;
-        var artEl = $('trackArt');
-        if (track.thumbnail) {
-            artEl.innerHTML = '<img src="' + escapeHtml(track.thumbnail) + '" alt="Album art for ' + escapeHtml(track.title) + '">';
-        } else {
-            artEl.innerHTML = '&#127925;';
-        }
-        updatePlaylistUI();
-        if (broadcast && isHost && currentSessionId)
-            updateSession({ currentTrack: index, currentTime: 0, isPlaying: false });
-    }
+            // Create peer connections for every participant currently in the session
+            Object.keys(participants).forEach(clientId => {
+                if (clientId !== myUserId) createPeerConnectionForClient(clientId);
+            });
 
-    async function togglePlayPause() {
-        if (!isHost || !currentSessionId || !playlist.length || !playerReady) return;
-        if (ytPlayer.getPlayerState() === YT.PlayerState.PLAYING) {
-            ytPlayer.pauseVideo();
-        } else {
-            if ([YT.PlayerState.UNSTARTED, YT.PlayerState.CUED, -1].includes(ytPlayer.getPlayerState()))
-                loadTrack(currentTrackIndex);
-            ytPlayer.playVideo();
-        }
-    }
-
-    function nextTrack() {
-        if (!isHost || !currentSessionId || !playlist.length) return;
-        loadTrack((currentTrackIndex + 1) % playlist.length);
-    }
-
-    function previousTrack() {
-        if (!isHost || !currentSessionId || !playlist.length) return;
-        loadTrack(currentTrackIndex === 0 ? playlist.length - 1 : currentTrackIndex - 1);
-    }
-
-    function selectTrack(index) {
-        if (!isHost || !currentSessionId) return;
-        loadTrack(index);
-    }
-
-    function updateProgress() {
-        if (!playerReady || isUpdatingFromSync || document.activeElement === $('progressSlider')) return;
-        try {
-            const cur = ytPlayer.getCurrentTime() || 0;
-            const dur = ytPlayer.getDuration()    || 0;
-            $('progressSlider').max   = dur;
-            $('progressSlider').value = cur;
-            $('currentTime').textContent = formatTime(cur);
-            $('duration').textContent    = formatTime(dur);
-            if (isHost && ytPlayer.getPlayerState() === YT.PlayerState.PLAYING)
-                updateSession({ currentTime: cur });
-        } catch (_) {}
-    }
-
-    function onVolumeChange() {
-        const v = parseInt($('volumeSlider').value);
-        $('volumePercent').textContent = v + '%';
-        if (playerReady) ytPlayer.setVolume(v);
-        if (isHost) updateSession({ volume: v });
-    }
-
-    function onSeek() {
-        if (!isHost || !playerReady) return;
-        const t = parseFloat($('progressSlider').value);
-        ytPlayer.seekTo(t);
-        updateSession({ currentTime: t });
-    }
-
-    // ══════════════════════════════════════════════════════════════════
-    // 8.  YOUTUBE TRACK ADDING  (real titles via noembed.com)
-    // ══════════════════════════════════════════════════════════════════
-    function extractYouTubeVideoId(url) {
-        const patterns = [
-            /(?:youtube\.com\/watch\?v=)([^&\n?#]+)/,
-            /(?:youtu\.be\/)([^&\n?#]+)/,
-            /(?:youtube\.com\/embed\/)([^&\n?#]+)/,
-            /(?:youtube\.com\/shorts\/)([^&\n?#]+)/
-        ];
-        for (const re of patterns) {
-            const m = url.match(re);
-            if (m) return m[1];
-        }
-        return null;
-    }
-
-    async function fetchYouTubeVideoInfo(videoId) {
-        try {
-            const ytUrl  = 'https://www.youtube.com/watch?v=' + encodeURIComponent(videoId);
-            const apiUrl = 'https://noembed.com/embed?url=' + encodeURIComponent(ytUrl);
-            const res  = await fetch(apiUrl);
-            if (!res.ok) throw new Error('HTTP ' + res.status);
-            const data = await res.json();
-            return {
-                title:     data.title       || ('Video ' + videoId.slice(0,8)),
-                artist:    data.author_name  || 'YouTube',
-                thumbnail: 'https://img.youtube.com/vi/' + videoId + '/mqdefault.jpg',
-                duration:  'N/A'
-            };
+            const sourceName = sourceType === 'system' ? 'System Audio' : 'Microphone';
+            $('hostSourceLabel').textContent  = '\uD83C\uDFA4 Broadcasting: ' + sourceName;
+            $('hostStreamInfo').style.display = 'block';
+            $('liveBadge').style.display      = 'inline-flex';
+            $('btnSystem').disabled           = true;
+            $('btnMic').disabled              = true;
+            updateListenerCount();
+            setStatus('Broadcasting ' + sourceName + ' to all connected devices.', 'success');
         } catch (err) {
-            console.warn('fetchYouTubeVideoInfo failed:', err);
-            return {
-                title:     'Video ' + videoId.slice(0,8),
-                artist:    'YouTube',
-                thumbnail: 'https://img.youtube.com/vi/' + videoId + '/mqdefault.jpg',
-                duration:  'N/A'
-            };
+            localStream = null;
+            if (err.name !== 'NotAllowedError' && err.name !== 'AbortError') {
+                setStatus('Could not start streaming: ' + err.message, 'error');
+            } else {
+                setStatus('Broadcast cancelled.', '');
+            }
         }
     }
 
-    async function addTrackFromYoutube() {
-        const input = $('youtubeUrl').value.trim();
-        if (!input) { setStatus('Paste a YouTube URL first.', 'error'); return; }
-        const videoId = extractYouTubeVideoId(input);
-        if (!videoId) { setStatus('Could not recognise a YouTube video ID in that URL.', 'error'); return; }
-        setStatus('Fetching video info\u2026', 'loading');
-        const info = await fetchYouTubeVideoInfo(videoId);
-        const track = {
-            id: Date.now().toString(), title: info.title, artist: info.artist,
-            videoId, thumbnail: info.thumbnail, duration: info.duration, source: 'youtube'
+    function stopStreaming() {
+        if (localStream) {
+            localStream.getTracks().forEach(t => t.stop());
+            localStream = null;
+        }
+        isStreaming = false;
+        Object.keys(peerConnections).forEach(id => closePeerForClient(id));
+        peerConnections = {};
+        if (currentSessionId) {
+            db.collection('sessions').doc(currentSessionId)
+              .update({ isStreaming: false }).catch(() => {});
+        }
+        $('hostStreamInfo').style.display = 'none';
+        $('liveBadge').style.display      = 'none';
+        if ($('btnSystem')) $('btnSystem').disabled = false;
+        if ($('btnMic'))    $('btnMic').disabled    = false;
+        if (currentSessionId) setStatus('Broadcast stopped.');
+    }
+
+    async function createPeerConnectionForClient(clientId) {
+        const signalRef = db.collection('sessions').doc(currentSessionId)
+                           .collection('signals').doc(clientId);
+        // Clear any stale signal doc before starting fresh
+        try { await signalRef.delete(); } catch (_) {}
+
+        const pc             = new RTCPeerConnection(RTC_CONFIG);
+        const hostCandidates = [];
+        peerConnections[clientId] = { pc, hostCandidates, unsubSignal: null };
+
+        // Add the live audio tracks
+        localStream.getAudioTracks().forEach(track => pc.addTrack(track, localStream));
+
+        pc.onicecandidate = async event => {
+            if (!event.candidate) return;
+            hostCandidates.push({
+                candidate:     event.candidate.candidate,
+                sdpMLineIndex: event.candidate.sdpMLineIndex,
+                sdpMid:        event.candidate.sdpMid
+            });
+            try {
+                await signalRef.set({ hostCandidates }, { merge: true });
+            } catch (err) { console.warn('Host ICE write error:', err); }
         };
-        playlist.push(track);
-        updatePlaylistUI();
-        if (isHost && currentSessionId) await updateSession({ playlist });
-        $('youtubeUrl').value = '';
-        setStatus('"' + info.title + '" added to playlist.', 'success');
-        if (playlist.length === 1 && playerReady) loadTrack(0, isHost);
+
+        pc.onconnectionstatechange = () => {
+            if (pc.connectionState === 'failed' || pc.connectionState === 'closed') {
+                closePeerForClient(clientId);
+            }
+            updateListenerCount();
+        };
+
+        // Create and write the offer
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        await signalRef.set({
+            offer:          { type: offer.type, sdp: offer.sdp },
+            hostCandidates: []
+        });
+
+        // Watch for the client\u2019s answer and ICE candidates
+        let clientCandsProcessed = 0;
+        const unsub = signalRef.onSnapshot(async snap => {
+            if (!snap.exists) return;
+            const data = snap.data();
+            if (data.answer && !pc.remoteDescription) {
+                try {
+                    await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
+                } catch (err) { console.warn('setRemoteDescription error (host):', err); }
+            }
+            const cands = data.clientCandidates || [];
+            for (let i = clientCandsProcessed; i < cands.length; i++) {
+                try { await pc.addIceCandidate(new RTCIceCandidate(cands[i])); } catch (_) {}
+            }
+            clientCandsProcessed = cands.length;
+        });
+        peerConnections[clientId].unsubSignal = unsub;
+    }
+
+    function closePeerForClient(clientId) {
+        const entry = peerConnections[clientId];
+        if (!entry) return;
+        if (entry.unsubSignal) entry.unsubSignal();
+        try { entry.pc.close(); } catch (_) {}
+        delete peerConnections[clientId];
+        updateListenerCount();
+    }
+
+    function updateListenerCount() {
+        const countEl = $('listenerCount');
+        if (!countEl) return;
+        const total     = Object.keys(participants).filter(id => id !== myUserId).length;
+        const connected = Object.values(peerConnections)
+            .filter(e => e.pc && (e.pc.connectionState === 'connected' || e.pc.connectionState === 'connecting')).length;
+        countEl.textContent = connected + '\u202f/\u202f' + total +
+            ' listener' + (total !== 1 ? 's' : '') + ' connected';
     }
 
     // ══════════════════════════════════════════════════════════════════
-    // 9.  PLAYLIST UI
+    // 7.  CLIENT LISTENING  (WebRTC receiver)
     // ══════════════════════════════════════════════════════════════════
-    function updatePlaylistUI() {
-        const container = $('playlistContainer');
-        $('playlistCount').textContent = '(' + playlist.length + ' track' + (playlist.length !== 1 ? 's' : '') + ')';
-        if (!playlist.length) {
-            container.innerHTML = '<p style="color:var(--text-dim);text-align:center;padding:24px 0;font-size:.88em">No tracks yet.</p>';
+    function subscribeToHostStream() {
+        if (!currentSessionId || !myUserId || isHost) return;
+        cleanupClientConnection();
+
+        const signalRef = db.collection('sessions').doc(currentSessionId)
+                           .collection('signals').doc(myUserId);
+
+        clientPc           = new RTCPeerConnection(RTC_CONFIG);
+        hostCandsProcessed = 0;
+        const clientCandidates = [];
+
+        clientPc.ontrack = event => {
+            const audioEl = $('remoteAudio');
+            if (audioEl && audioEl.srcObject !== event.streams[0]) {
+                audioEl.srcObject = event.streams[0];
+            }
+        };
+
+        clientPc.onicecandidate = async event => {
+            if (!event.candidate) return;
+            clientCandidates.push({
+                candidate:     event.candidate.candidate,
+                sdpMLineIndex: event.candidate.sdpMLineIndex,
+                sdpMid:        event.candidate.sdpMid
+            });
+            try {
+                await signalRef.set({ clientCandidates }, { merge: true });
+            } catch (err) { console.warn('Client ICE write error:', err); }
+        };
+
+        clientSignalUnsub = signalRef.onSnapshot(async snap => {
+            if (!snap.exists || !clientPc) return;
+            const data = snap.data();
+            // Process the offer (once only)
+            if (data.offer && !clientPc.remoteDescription) {
+                try {
+                    await clientPc.setRemoteDescription(new RTCSessionDescription(data.offer));
+                    const answer = await clientPc.createAnswer();
+                    await clientPc.setLocalDescription(answer);
+                    await signalRef.set(
+                        { answer: { type: answer.type, sdp: answer.sdp } },
+                        { merge: true }
+                    );
+                } catch (err) { console.warn('Answer creation error:', err); }
+            }
+            // Process host ICE candidates (delta only to avoid re-adding)
+            const cands = data.hostCandidates || [];
+            for (let i = hostCandsProcessed; i < cands.length; i++) {
+                try { await clientPc.addIceCandidate(new RTCIceCandidate(cands[i])); } catch (_) {}
+            }
+            hostCandsProcessed = cands.length;
+        });
+    }
+
+    async function activateListening() {
+        const audioEl = $('remoteAudio');
+        if (!audioEl || !audioEl.srcObject) {
+            setStatus('Stream not yet connected \u2014 please wait a moment and try again.', 'loading');
             return;
         }
-        container.innerHTML = playlist.map((t, i) =>
-            '<div class="track-item ' + (i === currentTrackIndex ? 'active' : '') + ' ' + (!isHost ? 'disabled' : '') + '" ' +
-            (isHost ? 'onclick="selectTrack(' + i + ')"' : '') + '>' +
-            '<span class="track-num">' + (i + 1) + '</span>' +
-            '<div class="track-item-info">' +
-            '<strong>' + escapeHtml(t.title) + '</strong>' +
-            '<small>' + escapeHtml(t.artist) + '</small>' +
-            '</div>' +
-            '<span class="track-duration">' + escapeHtml(t.duration) + '</span>' +
-            (isHost ? '<button class="remove-track" onclick="removeTrack(' + i + ');event.stopPropagation()" title="Remove track" aria-label="Remove track">\u00d7</button>' : '') +
-            '</div>'
-        ).join('');
-    }
-
-    function removeTrack(index) {
-        if (!isHost) return;
-        playlist.splice(index, 1);
-        if (currentTrackIndex >= index) currentTrackIndex = Math.max(0, currentTrackIndex - 1);
-        updatePlaylistUI();
-        if (currentSessionId) updateSession({ playlist, currentTrack: currentTrackIndex });
-        if (!playlist.length && playerReady) {
-            ytPlayer.pauseVideo();
-            $('currentTrackTitle').textContent = 'No track selected';
-            $('trackDetails').textContent = 'Add tracks to continue playing';
+        try {
+            await audioEl.play();
+            $('btnListen').style.display          = 'none';
+            $('guestListeningInfo').style.display = 'block';
+            $('liveBadge').style.display          = 'inline-flex';
+            setStatus('Listening to live broadcast.', 'success');
+        } catch (err) {
+            setStatus('Could not play audio: ' + err.message, 'error');
         }
     }
 
+    function cleanupClientConnection() {
+        if (clientSignalUnsub) { clientSignalUnsub(); clientSignalUnsub = null; }
+        if (clientPc) { try { clientPc.close(); } catch (_) {} clientPc = null; }
+        hostCandsProcessed = 0;
+        const audioEl = $('remoteAudio');
+        if (audioEl) { audioEl.srcObject = null; audioEl.pause(); }
+    }
+
     // ══════════════════════════════════════════════════════════════════
-    // 10. SURROUND SOUND
+    // 8.  BROADCAST UI
+    // ══════════════════════════════════════════════════════════════════
+    function updateBroadcastUI() {
+        $('broadcastNoSession').style.display = currentSessionId ? 'none'  : 'block';
+        $('broadcastHostView').style.display  = (currentSessionId && isHost)  ? 'block' : 'none';
+        $('broadcastGuestView').style.display = (currentSessionId && !isHost) ? 'block' : 'none';
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    // 9.  SURROUND SOUND
     // ══════════════════════════════════════════════════════════════════
     function initSurroundUI() {
         if (isHost) {
@@ -1152,7 +1039,11 @@
         document.querySelectorAll('.mode-btn').forEach(b => {
             b.classList.toggle('active', b.textContent.toLowerCase() === mode);
         });
-        if (currentSessionId) updateSession({ surroundMode: mode });
+        if (currentSessionId) {
+            db.collection('sessions').doc(currentSessionId)
+              .update({ surroundMode: mode })
+              .catch(err => console.error('surroundMode update:', err));
+        }
     }
 
     function renderSurroundLayout() {
@@ -1172,7 +1063,7 @@
     }
 
     function renderParticipantList() {
-        const list = $('participantList');
+        const list  = $('participantList');
         const items = Object.entries(participants).map(function(e) {
             const uid = e[0]; const p = e[1];
             return '<div class="participant-chip">' +
@@ -1185,7 +1076,7 @@
     }
 
     // ══════════════════════════════════════════════════════════════════
-    // 11. VIRTUAL AUDIO DRIVER DOWNLOAD (info placeholder)
+    // 10. VIRTUAL AUDIO DRIVER DOWNLOAD (info placeholder)
     // ══════════════════════════════════════════════════════════════════
     function downloadDriver(os) {
         var msgs = {
@@ -1197,13 +1088,8 @@
     }
 
     // ══════════════════════════════════════════════════════════════════
-    // 13. UTILITIES
+    // 11. UTILITIES
     // ══════════════════════════════════════════════════════════════════
-    function formatTime(s) {
-        if (!s || isNaN(s)) return '0:00';
-        return Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0');
-    }
-
     function escapeHtml(str) {
         if (!str) return '';
         return String(str)
@@ -1213,23 +1099,26 @@
             .replace(/"/g,  '&quot;');
     }
 
-    function sleep(ms) { return new Promise(function(r){ setTimeout(r, ms); }); }
-
     // ══════════════════════════════════════════════════════════════════
-    // 14. EVENT LISTENERS & INIT
+    // 12. EVENT LISTENERS & INIT
     // ══════════════════════════════════════════════════════════════════
     document.addEventListener('DOMContentLoaded', function() {
-        $('volumeSlider').addEventListener('input',  onVolumeChange);
-        $('progressSlider').addEventListener('input',  onSeek);
-        $('progressSlider').addEventListener('change', onSeek);
-        $('youtubeUrl').addEventListener('keypress', function(e){ if (e.key === 'Enter') addTrackFromYoutube(); });
-        $('sessionId').addEventListener('keypress',  function(e){ if (e.key === 'Enter') joinSession(); });
+        $('sessionId').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') joinSession();
+        });
+        $('guestVolumeSlider').addEventListener('input', function() {
+            const v = parseInt($('guestVolumeSlider').value);
+            $('guestVolumePercent').textContent = v + '%';
+            const audioEl = $('remoteAudio');
+            if (audioEl) audioEl.volume = v / 100;
+        });
         renderSurroundLayout(); // show default stereo layout on load
     });
 
     window.addEventListener('beforeunload', function() {
         if (sessionListener) sessionListener();
-        if (syncInterval)    clearInterval(syncInterval);
+        stopStreaming();
+        cleanupClientConnection();
     });
     </script>
 </body>
