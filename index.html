@@ -585,7 +585,18 @@
     const RTC_CONFIG = {
         iceServers: [
             { urls: 'stun:stun.l.google.com:19302' },
-            { urls: 'stun:stun1.l.google.com:19302' }
+            { urls: 'stun:stun1.l.google.com:19302' },
+            // TURN relay servers are required for mobile networks (carrier NAT / symmetric NAT).
+            // These use the publicly available Open Relay Project credentials.
+            {
+                urls: [
+                    'turn:openrelay.metered.ca:80',
+                    'turn:openrelay.metered.ca:443',
+                    'turn:openrelay.metered.ca:443?transport=tcp'
+                ],
+                username:   'openrelayproject',
+                credential: 'openrelayproject'
+            }
         ]
     };
 
@@ -1120,6 +1131,21 @@
             if (audioEl) audioEl.volume = v / 100;
         });
         renderSurroundLayout(); // show default stereo layout on load
+
+        // Disable "System Audio" on browsers that don't support getDisplayMedia (all mobile browsers).
+        // Microphone broadcasting remains fully supported on mobile.
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
+            const btn = $('btnSystem');
+            if (btn) {
+                btn.disabled = true;
+                btn.title    = 'System audio capture is only available on desktop browsers.';
+                btn.style.opacity = '0.4';
+                btn.style.cursor  = 'not-allowed';
+                btn.innerHTML =
+                    '<span class="material-icons" style="font-size:18px;vertical-align:middle">computer</span>' +
+                    ' System Audio <span style="font-size:.75em;opacity:.7">(desktop only)</span>';
+            }
+        }
     });
 
     window.addEventListener('beforeunload', function() {
