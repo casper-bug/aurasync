@@ -786,8 +786,9 @@
                     return;
                 }
                 setStatus('Opening screen-share dialog\u2026 select a window/tab and tick \u201cShare audio\u201d.', 'loading');
+                // video:true is required by some browsers to show the share dialog;
+                // we stop video tracks immediately after — only audio is needed.
                 localStream = await navigator.mediaDevices.getDisplayMedia({ audio: true, video: true });
-                // Stop video tracks — we only need audio
                 localStream.getVideoTracks().forEach(t => t.stop());
                 if (localStream.getAudioTracks().length === 0) {
                     setStatus('No audio track captured. Make sure to enable \u201cShare audio\u201d in the browser dialog.', 'error');
@@ -799,8 +800,10 @@
                 localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
             }
 
-            // If the user ends the share via the browser\u2019s native UI, auto-stop the broadcast
-            localStream.getTracks().forEach(track => { track.onended = () => stopStreaming(); });
+            // Use addEventListener so other handlers are not overwritten if more are added later
+            localStream.getTracks().forEach(track => {
+                track.addEventListener('ended', () => stopStreaming());
+            });
 
             isStreaming = true;
             await db.collection('sessions').doc(currentSessionId).update({ isStreaming: true });
@@ -851,7 +854,7 @@
         const signalRef = db.collection('sessions').doc(currentSessionId)
                            .collection('signals').doc(clientId);
         // Clear any stale signal doc before starting fresh
-        try { await signalRef.delete(); } catch (_) {}
+        try { await signalRef.delete(); } catch (err) { console.warn('Signal delete error:', err); }
 
         const pc             = new RTCPeerConnection(RTC_CONFIG);
         const hostCandidates = [];
@@ -899,7 +902,7 @@
             }
             const cands = data.clientCandidates || [];
             for (let i = clientCandsProcessed; i < cands.length; i++) {
-                try { await pc.addIceCandidate(new RTCIceCandidate(cands[i])); } catch (_) {}
+                try { await pc.addIceCandidate(new RTCIceCandidate(cands[i])); } catch (err) { console.warn('addIceCandidate error (host):', err); }
             }
             clientCandsProcessed = cands.length;
         });
@@ -920,9 +923,13 @@
         if (!countEl) return;
         const total     = Object.keys(participants).filter(id => id !== myUserId).length;
         const connected = Object.values(peerConnections)
-            .filter(e => e.pc && (e.pc.connectionState === 'connected' || e.pc.connectionState === 'connecting')).length;
-        countEl.textContent = connected + '\u202f/\u202f' + total +
-            ' listener' + (total !== 1 ? 's' : '') + ' connected';
+            .filter(e => e.pc && e.pc.connectionState === 'connected').length;
+        const connecting = Object.values(peerConnections)
+            .filter(e => e.pc && e.pc.connectionState === 'connecting').length;
+        const label = connecting > 0
+            ? connected + ' connected, ' + connecting + ' connecting'
+            : connected + '\u202f/\u202f' + total + ' listener' + (total !== 1 ? 's' : '') + ' connected';
+        countEl.textContent = label;
     }
 
     // ══════════════════════════════════════════════════════════════════
@@ -976,7 +983,7 @@
             // Process host ICE candidates (delta only to avoid re-adding)
             const cands = data.hostCandidates || [];
             for (let i = hostCandsProcessed; i < cands.length; i++) {
-                try { await clientPc.addIceCandidate(new RTCIceCandidate(cands[i])); } catch (_) {}
+                try { await clientPc.addIceCandidate(new RTCIceCandidate(cands[i])); } catch (err) { console.warn('addIceCandidate error (client):', err); }
             }
             hostCandsProcessed = cands.length;
         });
@@ -1004,7 +1011,7 @@
         if (clientPc) { try { clientPc.close(); } catch (_) {} clientPc = null; }
         hostCandsProcessed = 0;
         const audioEl = $('remoteAudio');
-        if (audioEl) { audioEl.srcObject = null; audioEl.pause(); }
+        if (audioEl) { audioEl.pause(); audioEl.srcObject = null; }
     }
 
     // ══════════════════════════════════════════════════════════════════
