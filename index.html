@@ -1,394 +1,94 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>AuraSync</title>
-    
-    <!-- Design Assets -->
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
-    <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- Firebase Compat SDKs (More stable in sandboxes) -->
+
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet" />
+
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
-    
-    <!-- YouTube API -->
-    <script src="https://www.youtube.com/iframe_api"></script>
-    
+
     <style>
-        :root { --bg: #050512; --accent: #ff6b6b; --teal: #4ecdc4; --indigo: #a78bfa; }
-        body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: var(--bg); color: #f8fafc; overflow-x: hidden; }
-        .glass { background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.08); }
-        .btn-admin { background: linear-gradient(135deg, var(--accent), var(--indigo)); transition: 0.3s; box-shadow: 0 4px 15px rgba(255, 107, 107, 0.2); }
-        .btn-admin:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(255, 107, 107, 0.3); }
-        .btn-admin:disabled { opacity: 0.3; cursor: not-allowed; }
-        .input-glow { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); outline: none; transition: 0.2s; }
-        .input-glow:focus { border-color: var(--teal); background: rgba(255,255,255,0.1); }
-        #player-container { position: relative; width: 100%; padding-top: 56.25%; border-radius: 1.5rem; overflow: hidden; background: #000; box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
-        #player { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
-        .aurora { position: fixed; inset: 0; z-index: -1; background: radial-gradient(circle at 10% 10%, rgba(255, 107, 107, 0.1) 0%, transparent 40%), radial-gradient(circle at 90% 90%, rgba(78, 205, 196, 0.05) 0%, transparent 40%); }
-        ::-webkit-scrollbar { width: 4px; }
-        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
-    </style>
-</head>
-<body class="min-h-screen">
-    <div class="aurora"></div>
-
-    <!-- Global Notifications -->
-    <div id="toast" class="fixed top-8 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 px-6 py-3 rounded-full glass text-[10px] font-bold uppercase tracking-widest transition-all transform -translate-y-32">
-        <span id="toast-dot" class="w-2 h-2 rounded-full bg-blue-500"></span>
-        <span id="toast-text">Initializing...</span>
-    </div>
-
-    <main class="max-w-xl mx-auto px-6 py-8 flex flex-col min-h-screen">
-        
-        <header class="text-center mb-8">
-            <h1 class="text-4xl font-black italic tracking-tighter bg-gradient-to-r from-[#ff6b6b] to-[#a78bfa] bg-clip-text text-transparent">AuraSync</h1>
-            <p class="text-[9px] font-bold text-white/20 uppercase tracking-[0.4em] mt-1">Admin Command Center</p>
-        </header>
-
-        <!-- SETUP VIEW -->
-        <div id="view-setup" class="space-y-4">
-            <div class="glass p-8 rounded-[40px] space-y-6">
-                <div class="space-y-2">
-                    <label class="text-[9px] font-bold text-white/40 uppercase tracking-widest px-2">Access Code</label>
-                    <div class="relative">
-                        <input type="text" id="code-input" maxlength="6" placeholder="------" class="input-glow w-full py-5 rounded-2xl text-3xl font-black text-center uppercase tracking-widest">
-                        <button id="btn-refresh" class="absolute right-4 top-1/2 -translate-y-1/2 text-white/20 hover:text-white/60">
-                            <span class="material-icons-round">autorenew</span>
-                        </button>
-                    </div>
-                </div>
-                <div class="grid grid-cols-2 gap-4">
-                    <button id="btn-host" disabled class="btn-admin py-5 rounded-2xl font-black text-xs tracking-widest">HOST</button>
-                    <button id="btn-join" disabled class="bg-white/5 hover:bg-white/10 py-5 rounded-2xl font-black text-xs tracking-widest border border-white/10 transition-all">JOIN</button>
-                </div>
-                <p id="status-subtext" class="text-center text-[9px] font-bold text-white/20 uppercase tracking-widest">Connecting to Firebase...</p>
-            </div>
-        </div>
-
-        <!-- DASHBOARD VIEW -->
-        <div id="view-dash" class="hidden space-y-6">
-            <div class="glass p-6 rounded-[32px] space-y-6">
-                <div class="flex justify-between items-center">
-                    <div>
-                        <p class="text-[9px] font-bold text-white/30 uppercase tracking-widest">Room Code</p>
-                        <h2 id="room-display" class="text-2xl font-black tracking-tighter text-white">------</h2>
-                    </div>
-                    <button id="btn-leave" class="p-2 glass rounded-full text-white/40 hover:text-white">
-                        <span class="material-icons-round text-sm">logout</span>
-                    </button>
-                </div>
-
-                <div id="player-container">
-                    <div id="player"></div>
-                </div>
-
-                <div class="px-1">
-                    <p class="text-[9px] font-bold text-teal-400 uppercase tracking-widest mb-1">Current Track</p>
-                    <h3 id="now-playing-title" class="text-sm font-bold truncate">Waiting for data...</h3>
-                </div>
-
-                <!-- ADMIN PANEL -->
-                <div id="admin-panel" class="hidden space-y-4 pt-4 border-t border-white/5">
-                    <div class="space-y-2">
-                        <label class="text-[10px] font-bold text-white/30 uppercase">Add YouTube Link</label>
-                        <div class="flex gap-2">
-                            <input type="text" id="yt-url" placeholder="Paste link (even dirty ones)..." class="flex-1 input-glow py-3 px-4 rounded-xl text-xs">
-                            <button id="btn-add-queue" class="bg-teal-500 hover:bg-teal-400 p-3 rounded-xl transition-all">
-                                <span class="material-icons-round text-white">add</span>
-                            </button>
-                        </div>
-                    </div>
-                    <div class="flex gap-2">
-                        <button id="btn-play-pause" class="flex-1 bg-white/10 hover:bg-white/20 py-3 rounded-xl font-bold text-[10px] flex items-center justify-center gap-2">
-                            <span class="material-icons-round text-sm">play_pause</span> PLAY / PAUSE
-                        </button>
-                        <button id="btn-next" class="bg-white/10 hover:bg-white/20 px-6 rounded-xl">
-                            <span class="material-icons-round text-sm">skip_next</span>
-                        </button>
-                    </div>
-                </div>
-
-                <!-- GUEST PANEL -->
-                <div id="guest-panel" class="hidden space-y-3">
-                    <button id="btn-audio-join" class="w-full btn-admin py-4 rounded-2xl font-black text-xs tracking-widest">JOIN PARTY AUDIO</button>
-                    <button id="btn-nudge" class="w-full bg-white/5 py-3 rounded-xl text-[10px] font-bold flex items-center justify-center gap-2 border border-white/5">
-                        <span class="material-icons-round text-xs">shutter_speed</span> MANUAL NUDGE (RESYNC)
-                    </button>
-                </div>
-            </div>
-
-            <!-- QUEUE LIST -->
-            <div class="glass p-6 rounded-[32px] space-y-4">
-                <h3 class="text-[10px] font-black uppercase tracking-widest text-white/30">Playlist Queue</h3>
-                <div id="queue-list" class="space-y-2 max-h-72 overflow-y-auto pr-1">
-                    <p class="text-center text-[10px] text-white/10 py-10 italic">No tracks in queue</p>
-                </div>
-            </div>
-        </div>
-    </main>
-
-    <script>
-        // ── APPLICATION LOGIC ──
-        // Using Compat SDK (firebase.something) for better sandbox stability
-
-        const firebaseConfig = {
-            apiKey:            'AIzaSyAvdsISdxERqIrZbyecvwKsf2V7lFuPWkc',
-            authDomain:        'zync-2baf2.firebaseapp.com',
-            projectId:         'zync-2baf2',
-            storageBucket:     'zync-2baf2.appspot.com',
-            messagingSenderId: '388386446447',
-            appId:             '1:388386446447:web:9659826f61a4aaec01019a'
-        };
-
-        // Initialize Firebase
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.firestore();
-        const auth = firebase.auth();
-        const artifactId = (typeof __app_id !== 'undefined') ? __app_id : 'aura-sync-v2';
-
-        let user = null;
-        let roomCode = "";
-        let isHost = false;
-        let ytPlayer = null;
-        let masterData = { videoId: '', playing: false, currentTime: 0, queue: [] };
-
-        // Toast Helper
-        const showToast = (msg, mode = 'info') => {
-            const el = document.getElementById('toast');
-            const txt = document.getElementById('toast-text');
-            const dot = document.getElementById('toast-dot');
-            txt.innerText = msg;
-            dot.className = `w-2 h-2 rounded-full ${mode === 'success' ? 'bg-green-500' : mode === 'error' ? 'bg-rose-500' : 'bg-blue-500'}`;
-            el.style.transform = 'translate(-50%, 0)';
-            setTimeout(() => { el.style.transform = 'translate(-50%, -128px)'; }, 3500);
-        };
-
-        // Alphanumeric Code Generator
-        const genCode = () => {
-            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-            let res = '';
-            for(let i=0; i<6; i++) res += chars.charAt(Math.floor(Math.random() * chars.length));
-            document.getElementById('code-input').value = res;
-        };
-
-        // Wait for Auth
-        auth.signInAnonymously().then(cred => {
-            user = cred.user;
-            document.getElementById('btn-host').disabled = false;
-            document.getElementById('btn-join').disabled = false;
-            document.getElementById('status-subtext').innerText = "System Ready";
-            document.getElementById('status-subtext').style.color = "#4ecdc4";
-            showToast("Connected to Aura Network", "success");
-        }).catch(err => {
-            console.error(err);
-            showToast("Network Error: Verify API Keys", "error");
-        });
-
-        // ── UI EVENT HANDLERS ──
-        document.getElementById('btn-refresh').onclick = genCode;
-
-        document.getElementById('btn-host').onclick = () => handleEntry(true);
-        document.getElementById('btn-join').onclick = () => handleEntry(false);
-        document.getElementById('btn-leave').onclick = () => location.reload();
-
-        async function handleEntry(hostMode) {
-            roomCode = document.getElementById('code-input').value.trim().toUpperCase();
-            if (roomCode.length < 3) return showToast("Enter Room Code", "error");
-
-            isHost = hostMode;
-            const roomRef = db.collection('artifacts').doc(artifactId).collection('public').doc('data').collection(roomCode).doc('master');
-
-            try {
-                const snap = await roomRef.get();
-                if (isHost) {
-                    await roomRef.set({
-                        hostId: user.uid,
-                        videoId: 'dQw4w9WgXcQ',
-                        playing: false,
-                        currentTime: 0,
-                        queue: [],
-                        lastSync: Date.now()
-                    });
-                } else if (!snap.exists) {
-                    return showToast("Room Not Found", "error");
-                }
-
-                document.getElementById('view-setup').classList.add('hidden');
-                document.getElementById('view-dash').classList.remove('hidden');
-                document.getElementById('room-display').innerText = roomCode;
-
-                if (isHost) document.getElementById('admin-panel').classList.remove('hidden');
-                else document.getElementById('guest-panel').classList.remove('hidden');
-
-                initYouTubePlayer();
-                startSyncEngine();
-            } catch (e) {
-                console.error(e);
-                showToast("Database Access Denied", "error");
-            }
+        :root {
+            --bg: #090b18;
+            --bg2: #0f1224;
+            --text: #f5f7ff;
+            --text-muted: #b8bfd8;
+            --text-dim: #8f96b3;
+            --accent1: #ff6b6b;
+            --accent2: #4ecdc4;
+            --accent3: #a78bfa;
+            --glass-bd: rgba(255,255,255,.12);
+            --glass-bd-h: rgba(255,255,255,.24);
+            --radius-sm: 12px;
+            --radius-md: 18px;
         }
 
-        // ── YOUTUBE LOGIC ──
-        function initYouTubePlayer() {
-            window.onYouTubeIframeAPIReady = () => {
-                ytPlayer = new YT.Player('player', {
-                    height: '100%',
-                    width: '100%',
-                    videoId: 'dQw4w9WgXcQ',
-                    playerVars: { 'autoplay': 0, 'controls': 0, 'disablekb': 1, 'fs': 0, 'modestbranding': 1, 'rel': 0, 'playsinline': 1 },
-                    events: {
-                        'onReady': () => {
-                            if (isHost) setInterval(pushSyncData, 2000);
-                        }
-                    }
-                });
-            };
-            if (window.YT && window.YT.Player) onYouTubeIframeAPIReady();
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            min-height: 100vh;
+            padding: 22px 18px 48px;
+            font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+            color: var(--text);
+            background:
+                radial-gradient(circle at 10% 10%, rgba(255,107,107,.12), transparent 35%),
+                radial-gradient(circle at 85% 20%, rgba(78,205,196,.10), transparent 38%),
+                linear-gradient(135deg, var(--bg), var(--bg2));
         }
 
-        const parseVideoId = (url) => {
-            const regex = /^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#&?]*).*/;
-            const match = url.match(regex);
-            return (match && match[7].length == 11) ? match[7] : false;
-        };
+        .header { text-align: center; margin: 8px auto 18px; max-width: 980px; }
+        .header-logo { display: inline-flex; align-items: center; gap: 10px; }
+        .logo-icon { font-size: 1.55rem; }
+        .header h1 { margin: 0; font-size: 2.45rem; letter-spacing: -.02em; }
+        .header p { margin: 6px 0 0; color: var(--text-dim); font-size: .95rem; }
 
-        const getTrackName = async (vid) => {
-            try {
-                const res = await fetch(`https://noembed.com/embed?url=https://www.youtube.com/watch?v=${vid}`);
-                const data = await res.json();
-                return data.title || "Unknown Track";
-            } catch { return "YouTube Track"; }
-        };
+        #status {
+            max-width: 980px; margin: 0 auto 14px;
+            padding: 10px 12px; border-radius: 10px;
+            background: rgba(255,255,255,.05);
+            border: 1px solid var(--glass-bd);
+            color: var(--text-muted); font-size: .9em;
+        }
+        #status.success { border-color: rgba(78,205,196,.4); color: #b7fff9; }
+        #status.error { border-color: rgba(255,107,107,.45); color: #ffd5d5; }
+        #status.loading { color: #d9e2ff; }
 
-        // ── ADMIN ACTIONS ──
-        document.getElementById('btn-add-queue').onclick = async () => {
-            const url = document.getElementById('yt-url').value.trim();
-            const vid = parseVideoId(url);
-            if (!vid) return showToast("Invalid YouTube Link", "error");
+        .connection-status {
+            position: fixed; top: 12px; right: 12px; z-index: 20;
+            border-radius: 999px; padding: 6px 11px;
+            font-size: .78em; font-weight: 600;
+            border: 1px solid var(--glass-bd);
+            background: rgba(18,22,42,.8);
+            display: inline-flex; align-items: center; gap: 7px;
+        }
+        .conn-dot { width: 7px; height: 7px; border-radius: 50%; background: #a0a7c8; }
+        .connection-status.connected .conn-dot { background: var(--accent2); box-shadow: 0 0 8px var(--accent2); }
+        .connection-status.auth-error .conn-dot { background: var(--accent1); box-shadow: 0 0 8px var(--accent1); }
 
-            showToast("Fetching song info...", "info");
-            const title = await getTrackName(vid);
-            const roomRef = db.collection('artifacts').doc(artifactId).collection('public').doc('data').collection(roomCode).doc('master');
-            
-            await roomRef.update({
-                queue: firebase.firestore.FieldValue.arrayUnion({ id: Date.now(), videoId: vid, title: title })
-            });
-            document.getElementById('yt-url').value = "";
-            showToast("Added to Party Queue", "success");
-        };
-
-        document.getElementById('btn-play-pause').onclick = async () => {
-            if (!isHost) return;
-            const roomRef = db.collection('artifacts').doc(artifactId).collection('public').doc('data').collection(roomCode).doc('master');
-            await roomRef.update({
-                playing: !masterData.playing,
-                currentTime: ytPlayer.getCurrentTime(),
-                lastSync: Date.now()
-            });
-        };
-
-        document.getElementById('btn-next').onclick = async () => {
-            if (!isHost || masterData.queue.length === 0) return;
-            const next = masterData.queue[0];
-            const newQueue = [...masterData.queue].slice(1);
-            const roomRef = db.collection('artifacts').doc(artifactId).collection('public').doc('data').collection(roomCode).doc('master');
-            await roomRef.update({
-                videoId: next.videoId,
-                queue: newQueue,
-                currentTime: 0,
-                playing: true,
-                lastSync: Date.now()
-            });
-        };
-
-        window.manageItem = async (idx, act) => {
-            if (!isHost) return;
-            let q = [...masterData.queue];
-            if (act === 'up' && idx > 0) [q[idx], q[idx-1]] = [q[idx-1], q[idx]];
-            else if (act === 'del') q.splice(idx, 1);
-            
-            const roomRef = db.collection('artifacts').doc(artifactId).collection('public').doc('data').collection(roomCode).doc('master');
-            await roomRef.update({ queue: q });
-        };
-
-        // ── SYNC ENGINE ──
-        async function pushSyncData() {
-            if (!isHost || !ytPlayer || typeof ytPlayer.getCurrentTime !== 'function') return;
-            const roomRef = db.collection('artifacts').doc(artifactId).collection('public').doc('data').collection(roomCode).doc('master');
-            await roomRef.update({
-                currentTime: ytPlayer.getCurrentTime(),
-                lastSync: Date.now()
-            });
+        .session-controls {
+            max-width: 980px; margin: 0 auto 12px;
+            display: grid; grid-template-columns: 1fr auto auto auto; gap: 10px;
         }
 
-        function startSyncEngine() {
-            const roomRef = db.collection('artifacts').doc(artifactId).collection('public').doc('data').collection(roomCode).doc('master');
-            roomRef.onSnapshot(async snap => {
-                const data = snap.data();
-                if (!data) return;
-                const oldVid = masterData.videoId;
-                masterData = data;
-
-                renderQueueUI(data.queue);
-
-                if (!ytPlayer) return;
-
-                if (oldVid !== data.videoId) {
-                    ytPlayer.loadVideoById(data.videoId);
-                    const title = await getTrackName(data.videoId);
-                    document.getElementById('now-playing-title').innerText = title;
-                }
-
-                if (data.playing) ytPlayer.playVideo(); else ytPlayer.pauseVideo();
-
-                if (!isHost) {
-                    const lag = (Date.now() - data.lastSync) / 1000;
-                    const target = data.currentTime + (data.playing ? lag : 0);
-                    if (Math.abs(ytPlayer.getCurrentTime() - target) > 1.5) {
-                        ytPlayer.seekTo(target, true);
-                    }
-                }
-            });
+        .card {
+            max-width: 980px; margin: 0 auto 14px;
+            background: rgba(255,255,255,.05);
+            border: 1px solid var(--glass-bd);
+            border-radius: var(--radius-md);
+            padding: 20px 20px;
+            backdrop-filter: blur(8px);
         }
-
-        document.getElementById('btn-nudge').onclick = () => {
-            if (!masterData || !ytPlayer) return;
-            const lag = (Date.now() - masterData.lastSync) / 1000;
-            const target = masterData.currentTime + (masterData.playing ? lag : 0);
-            ytPlayer.seekTo(target, true);
-            showToast("Nudged audio clock", "success");
-        };
-
-        document.getElementById('btn-audio-join').onclick = () => {
-            if (!ytPlayer) return;
-            ytPlayer.playVideo();
-            ytPlayer.mute();
-            setTimeout(() => {
-                ytPlayer.unMute();
-                document.getElementById('btn-audio-join').innerText = "CONNECTED";
-                document.getElementById('btn-audio-join').disabled = true;
-                document.getElementById('btn-audio-join').classList.add('opacity-40');
-            }, 400);
-        };
-
-        function renderQueueUI(q) {
-            const list = document.getElementById('queue-list');
-            if (!q || q.length === 0) {
-                list.innerHTML = `<p class="text-center text-[10px] text-white/10 py-10 italic">No tracks in queue</p>`;
-                return;
-            }
-            list.innerHTML = q.map((item, idx) => `
-                <div class="flex items-center gap-3 p-3 glass rounded-2xl border border-white/5">
-                    <img src="https://img.youtube.com/vi/${item.videoId}/default.jpg" class="w-12 h-9 rounded-xl object-cover">
-                    <div class="flex-1 min-w-0">
-                        <p class="text-[10px] font-bold truncate">${item.title}</p>
-                  
+        .card h3 {
+            margin: 0 0 14px;
+            display: flex; align-items: center; gap: 8px;
+            font-size: 1.03rem;
+        }
+        .card-icon { opacity: .9; }
         .session-controls input {
             padding: 11px 15px; border-radius: var(--radius-sm); font-size: .88em;
             font-family: inherit; font-weight: 500;
@@ -605,9 +305,9 @@
             .card { padding: 18px 16px; }
         }
     </style>
+    </style>
 </head>
 <body>
-
     <!-- Connection badge -->
     <div class="connection-status disconnected" id="connectionStatus">
         <span class="conn-dot"></span> Disconnected
@@ -770,11 +470,6 @@
         </p>
     </div>
 
-    <!-- ════════════════════════════════════════════════════════════════
-         APPLICATION SCRIPT
-         All JavaScript lives in one top-level script block.
-         External scripts (Firebase) are loaded in <head>.
-    ═══════════════════════════════════════════════════════════════════ -->
     <script>
     // ══════════════════════════════════════════════════════════════════
     // 1.  FIREBASE INIT
