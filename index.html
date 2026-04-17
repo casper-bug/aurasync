@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AuraSync | Admin Command</title>
     
     <!-- Frameworks -->
@@ -148,6 +148,9 @@
         let isHost = false;
         let ytPlayer = null;
         let masterState = { videoId: '', playing: false, currentTime: 0, queue: [] };
+        const makeQueueId = () => (window.crypto && crypto.randomUUID)
+            ? crypto.randomUUID()
+            : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 
         const toast = (msg, mode = 'info') => {
             const el = document.getElementById('toast');
@@ -244,6 +247,7 @@
         const fetchMeta = async (vid) => {
             try {
                 const res = await fetch(`https://noembed.com/embed?url=https://www.youtube.com/watch?v=${vid}`);
+                if (!res.ok) throw new Error(`Metadata request failed: ${res.status}`);
                 const d = await res.json();
                 return d.title || "YouTube Track";
             } catch { return "YouTube Track"; }
@@ -260,7 +264,7 @@
             const roomRef = db.collection('artifacts').doc(artifactId).collection('public').doc('data').collection(roomCode).doc('master');
             
             await roomRef.update({
-                queue: firebase.firestore.FieldValue.arrayUnion({ id: Date.now(), videoId: vid, title: title })
+                queue: firebase.firestore.FieldValue.arrayUnion({ id: makeQueueId(), videoId: vid, title: title })
             });
             document.getElementById('yt-url').value = "";
             toast("Track added", "success");
