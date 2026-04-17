@@ -148,6 +148,10 @@
         let isHost = false;
         let ytPlayer = null;
         let masterState = { videoId: '', playing: false, currentTime: 0, queue: [] };
+        let hostSyncIntervalId = null;
+        let guestResyncIntervalId = null;
+        const SYNC_PUSH_INTERVAL_MS = 2000;
+        const SYNC_DRIFT_THRESHOLD_SEC = 1.0;
         const makeQueueId = () => {
             if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
             if (window.crypto && crypto.getRandomValues) {
@@ -237,7 +241,19 @@
                     videoId: 'dQw4w9WgXcQ',
                     playerVars: { 'autoplay': 0, 'controls': 0, 'disablekb': 1, 'fs': 0, 'modestbranding': 1, 'rel': 0, 'playsinline': 1 },
                     events: {
-                        'onReady': () => { if (isHost) setInterval(pushSync, 2000); }
+                        'onReady': () => {
+                            if (isHost) {
+                                if (hostSyncIntervalId) clearInterval(hostSyncIntervalId);
+                                hostSyncIntervalId = setInterval(pushSync, SYNC_PUSH_INTERVAL_MS);
+                            } else {
+                                if (guestResyncIntervalId) clearInterval(guestResyncIntervalId);
+                                guestResyncIntervalId = setInterval(() => syncGuestPlayback(false), SYNC_PUSH_INTERVAL_MS);
+                            }
+                            syncGuestPlayback(true);
+                        },
+                        'onStateChange': () => {
+                            if (!isHost) syncGuestPlayback(false);
+                        }
                     }
                 });
             };
@@ -323,6 +339,21 @@
             });
         }
 
+        function getTargetTime(state) {
+            if (!state || typeof state.currentTime !== 'number') return 0;
+            const lag = Math.max(0, (Date.now() - (state.lastSync || Date.now())) / 1000);
+            const target = state.currentTime + (state.playing ? lag : 0);
+            return Math.max(0, target);
+        }
+
+        function syncGuestPlayback(forceSeek) {
+            if (isHost || !ytPlayer || !masterState || typeof ytPlayer.getCurrentTime !== 'function') return;
+            const target = getTargetTime(masterState);
+            if (forceSeek || Math.abs(ytPlayer.getCurrentTime() - target) > SYNC_DRIFT_THRESHOLD_SEC) {
+                ytPlayer.seekTo(target, true);
+            }
+        }
+
         function startSync() {
             const roomRef = db.collection('artifacts').doc(artifactId).collection('public').doc('data').collection(roomCode).doc('master');
             roomRef.onSnapshot(async snap => {
@@ -341,22 +372,22 @@
                     document.getElementById('current-title').innerText = title;
                 }
 
-                if (data.playing) ytPlayer.playVideo(); else ytPlayer.pauseVideo();
+                const state = typeof ytPlayer.getPlayerState === 'function' ? ytPlayer.getPlayerState() : null;
+                if (data.playing) {
+                    if (state !== YT.PlayerState.PLAYING) ytPlayer.playVideo();
+                } else if (state !== YT.PlayerState.PAUSED && state !== YT.PlayerState.ENDED) {
+                    ytPlayer.pauseVideo();
+                }
 
                 if (!isHost) {
-                    const lag = (Date.now() - data.lastSync) / 1000;
-                    const target = data.currentTime + (data.playing ? lag : 0);
-                    if (Math.abs(ytPlayer.getCurrentTime() - target) > 1.5) {
-                        ytPlayer.seekTo(target, true);
-                    }
+                    syncGuestPlayback(oldVid !== data.videoId);
                 }
             });
         }
 
         document.getElementById('btn-nudge').onclick = () => {
             if (!masterState || !ytPlayer) return;
-            const lag = (Date.now() - masterState.lastSync) / 1000;
-            const target = masterState.currentTime + (masterState.playing ? lag : 0);
+            const target = getTargetTime(masterState);
             ytPlayer.seekTo(target, true);
             toast("Manual Sync Applied", "success");
         };
