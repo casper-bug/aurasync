@@ -150,8 +150,10 @@
         let masterState = { videoId: '', playing: false, currentTime: 0, queue: [] };
         let hostSyncIntervalId = null;
         let guestResyncIntervalId = null;
+        let lastGuestStateSyncAt = 0;
         const SYNC_PUSH_INTERVAL_MS = 2000;
         const SYNC_DRIFT_THRESHOLD_SEC = 1.0;
+        const STATE_SYNC_COOLDOWN_MS = 800;
         const makeQueueId = () => {
             if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
             if (window.crypto && crypto.getRandomValues) {
@@ -248,11 +250,16 @@
                             } else {
                                 if (guestResyncIntervalId) clearInterval(guestResyncIntervalId);
                                 guestResyncIntervalId = setInterval(() => syncGuestPlayback(false), SYNC_PUSH_INTERVAL_MS);
+                                syncGuestPlayback(true);
                             }
-                            syncGuestPlayback(true);
                         },
-                        'onStateChange': () => {
-                            if (!isHost) syncGuestPlayback(false);
+                        'onStateChange': (event) => {
+                            if (isHost) return;
+                            if (event.data !== YT.PlayerState.PLAYING && event.data !== YT.PlayerState.PAUSED) return;
+                            const now = Date.now();
+                            if (now - lastGuestStateSyncAt < STATE_SYNC_COOLDOWN_MS) return;
+                            lastGuestStateSyncAt = now;
+                            syncGuestPlayback(false);
                         }
                     }
                 });
