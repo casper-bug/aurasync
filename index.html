@@ -348,7 +348,8 @@
 
         function getTargetTime(state) {
             if (!state || typeof state.currentTime !== 'number') return 0;
-            const lag = Math.max(0, (Date.now() - (state.lastSync || Date.now())) / 1000);
+            if (typeof state.lastSync !== 'number') return Math.max(0, state.currentTime);
+            const lag = Math.max(0, (Date.now() - state.lastSync) / 1000);
             const target = state.currentTime + (state.playing ? lag : 0);
             return Math.max(0, target);
         }
@@ -356,7 +357,13 @@
         function syncGuestPlayback(forceSeek) {
             if (isHost || !ytPlayer || !masterState || typeof ytPlayer.getCurrentTime !== 'function') return;
             const target = getTargetTime(masterState);
-            if (forceSeek || Math.abs(ytPlayer.getCurrentTime() - target) > SYNC_DRIFT_THRESHOLD_SEC) {
+            let current = 0;
+            try {
+                current = ytPlayer.getCurrentTime();
+            } catch (_) {
+                return;
+            }
+            if (forceSeek || Math.abs(current - target) > SYNC_DRIFT_THRESHOLD_SEC) {
                 ytPlayer.seekTo(target, true);
             }
         }
