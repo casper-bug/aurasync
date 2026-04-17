@@ -1,1100 +1,387 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>AuraSync</title>
-
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet" />
-
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>AuraSync | Admin Command</title>
+    
+    <!-- Frameworks -->
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Firebase Compat (Critical for Sandbox Stability) -->
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
-
+    
+    <!-- YouTube API -->
+    <script src="https://www.youtube.com/iframe_api"></script>
+    
     <style>
-        :root {
-            --bg: #090b18;
-            --bg2: #0f1224;
-            --text: #f5f7ff;
-            --text-muted: #b8bfd8;
-            --text-dim: #8f96b3;
-            --accent1: #ff6b6b;
-            --accent2: #4ecdc4;
-            --accent3: #a78bfa;
-            --glass-bd: rgba(255,255,255,.12);
-            --glass-bd-h: rgba(255,255,255,.24);
-            --radius-sm: 12px;
-            --radius-md: 18px;
-        }
-
-        * { box-sizing: border-box; }
-        body {
-            margin: 0;
-            min-height: 100vh;
-            padding: 22px 18px 48px;
-            font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
-            color: var(--text);
-            background:
-                radial-gradient(circle at 10% 10%, rgba(255,107,107,.12), transparent 35%),
-                radial-gradient(circle at 85% 20%, rgba(78,205,196,.10), transparent 38%),
-                linear-gradient(135deg, var(--bg), var(--bg2));
-        }
-
-        .header { text-align: center; margin: 8px auto 18px; max-width: 980px; }
-        .header-logo { display: inline-flex; align-items: center; gap: 10px; }
-        .logo-icon { font-size: 1.55rem; }
-        .header h1 { margin: 0; font-size: 2.45rem; letter-spacing: -.02em; }
-        .header p { margin: 6px 0 0; color: var(--text-dim); font-size: .95rem; }
-
-        #status {
-            max-width: 980px; margin: 0 auto 14px;
-            padding: 10px 12px; border-radius: 10px;
-            background: rgba(255,255,255,.05);
-            border: 1px solid var(--glass-bd);
-            color: var(--text-muted); font-size: .9em;
-        }
-        #status.success { border-color: rgba(78,205,196,.4); color: #b7fff9; }
-        #status.error { border-color: rgba(255,107,107,.45); color: #ffd5d5; }
-        #status.loading { color: #d9e2ff; }
-
-        .connection-status {
-            position: fixed; top: 12px; right: 12px; z-index: 20;
-            border-radius: 999px; padding: 6px 11px;
-            font-size: .78em; font-weight: 600;
-            border: 1px solid var(--glass-bd);
-            background: rgba(18,22,42,.8);
-            display: inline-flex; align-items: center; gap: 7px;
-        }
-        .conn-dot { width: 7px; height: 7px; border-radius: 50%; background: #a0a7c8; }
-        .connection-status.connected .conn-dot { background: var(--accent2); box-shadow: 0 0 8px var(--accent2); }
-        .connection-status.auth-error .conn-dot { background: var(--accent1); box-shadow: 0 0 8px var(--accent1); }
-
-        .session-controls {
-            max-width: 980px; margin: 0 auto 12px;
-            display: grid; grid-template-columns: 1fr auto auto auto; gap: 10px;
-        }
-
-        .card {
-            max-width: 980px; margin: 0 auto 14px;
-            background: rgba(255,255,255,.05);
-            border: 1px solid var(--glass-bd);
-            border-radius: var(--radius-md);
-            padding: 20px 20px;
-            backdrop-filter: blur(8px);
-        }
-        .card h3 {
-            margin: 0 0 14px;
-            display: flex; align-items: center; gap: 8px;
-            font-size: 1.03rem;
-        }
-        .card-icon { opacity: .9; }
-        .session-controls input {
-            padding: 11px 15px; border-radius: var(--radius-sm); font-size: .88em;
-            font-family: inherit; font-weight: 500;
-            border: 1px solid var(--glass-bd);
-            background: rgba(255,255,255,0.07); color: var(--text);
-            outline: none; transition: border-color .25s, box-shadow .25s;
-        }
-        .session-controls input:focus {
-            border-color: var(--accent2); box-shadow: 0 0 0 3px rgba(78,205,196,.12);
-        }
-        .session-controls input::placeholder { color: var(--text-dim); }
-
-        .session-controls button {
-            padding: 11px 18px; border-radius: var(--radius-sm); font-size: .85em;
-            font-family: inherit; font-weight: 600; border: none; color: white;
-            cursor: pointer; transition: all .22s; white-space: nowrap;
-            letter-spacing: .01em;
-        }
-        .session-controls button:nth-child(2) { background: linear-gradient(135deg,#5b8def,#3366cc); }
-        .session-controls button:nth-child(3) { background: linear-gradient(135deg,#3ecf8e,#1aaa6b); }
-        .session-controls button:nth-child(4) { background: linear-gradient(135deg,#f85050,#c82333); }
-        .session-controls button:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 6px 20px rgba(0,0,0,.35);
-            filter: brightness(1.1);
-        }
-        .session-controls button:active { transform: translateY(0); }
-
-        .current-session {
-            font-weight: 600; color: var(--accent2); margin-bottom: 20px;
-            font-size: .82em; letter-spacing: .02em;
-            display: flex; align-items: center; gap: 6px;
-        }
-        .current-session::before {
-            content: ''; display: inline-block;
-            width: 6px; height: 6px; border-radius: 50%;
-            background: var(--accent2); box-shadow: 0 0 8px var(--accent2);
-        }
-        #currentSession:empty::before { display: none; }
-
-        /* ── Broadcast card ── */
-        .btn-source {
-            display: inline-flex; align-items: center; gap: 8px;
-            padding: 11px 20px; border-radius: var(--radius-sm);
-            border: 1px solid var(--glass-bd-h);
-            background: rgba(255,255,255,.07); color: var(--text);
-            font-family: inherit; font-size: .88em; font-weight: 600;
-            cursor: pointer; transition: all .22s;
-        }
-        .btn-source:hover:not(:disabled) { background: rgba(255,255,255,.14); border-color: var(--accent2); transform: translateY(-1px); }
-        .btn-source:active:not(:disabled) { transform: translateY(0); }
-        .btn-source.active {
-            background: linear-gradient(135deg, rgba(78,205,196,.18), rgba(167,139,250,.18));
-            border-color: var(--accent2); color: var(--accent2);
-            box-shadow: 0 0 0 2px rgba(78,205,196,.15);
-        }
-        .btn-source:disabled { opacity: .4; cursor: not-allowed; }
-
-        .live-badge {
-            display: inline-flex; align-items: center; gap: 5px;
-            background: rgba(255,107,107,.15); border: 1px solid rgba(255,107,107,.35);
-            border-radius: 20px; padding: 4px 11px;
-            font-size: .75em; font-weight: 700; letter-spacing: .05em; color: var(--accent1);
-        }
-        .live-badge .live-dot {
-            width: 7px; height: 7px; border-radius: 50%; background: var(--accent1);
-            animation: pulse 1.4s infinite;
-        }
-
-        .listening-badge {
-            display: inline-flex; align-items: center; gap: 5px;
-            background: rgba(78,205,196,.12); border: 1px solid rgba(78,205,196,.28);
-            border-radius: 20px; padding: 4px 11px;
-            font-size: .75em; font-weight: 700; letter-spacing: .05em; color: var(--accent2);
-        }
-        .listening-badge .listen-dot {
-            width: 7px; height: 7px; border-radius: 50%; background: var(--accent2);
-            animation: pulse 2s infinite;
-        }
-
-        .stream-info-row {
-            display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
-            padding: 12px 16px; background: rgba(255,255,255,.04);
-            border-radius: var(--radius-md); border: 1px solid var(--glass-bd);
-            margin-top: 14px;
-        }
-        .listener-count { font-size: .82em; color: var(--text-muted); font-weight: 500; }
-
-        /* ── Volume slider (guest) ── */
-        .slider-container { display: flex; align-items: center; gap: 12px; margin-top: 12px; }
-        .slider {
-            flex: 1; height: 4px;
-            background: rgba(255,255,255,0.12);
-            border-radius: 2px; outline: none; -webkit-appearance: none; cursor: pointer;
-            transition: height .15s;
-        }
-        .slider:hover { height: 6px; }
-        .slider::-webkit-slider-thumb {
-            -webkit-appearance: none; width: 16px; height: 16px;
-            background: linear-gradient(135deg, var(--accent1), var(--accent3));
-            border-radius: 50%; cursor: pointer;
-            box-shadow: 0 0 8px rgba(255,107,107,.5);
-            transition: transform .15s;
-        }
-        .slider::-webkit-slider-thumb:hover { transform: scale(1.2); }
-        .slider::-moz-range-thumb {
-            width: 16px; height: 16px;
-            background: linear-gradient(135deg, var(--accent1), var(--accent3));
-            border-radius: 50%; border: none; cursor: pointer;
-        }
-        .volume-slider { max-width: 120px; }
-        .volume-label {
-            min-width: 34px; text-align: right; font-size: 12px;
-            font-weight: 600; color: var(--text-muted);
-        }
-        .slider-icon { font-size: 18px !important; opacity: .55; }
-
-        /* ── Surround Sound ── */
-        .surround-mode-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
-        .mode-btn {
-            padding: 7px 16px; border-radius: 20px;
-            border: 1px solid var(--glass-bd);
-            background: rgba(255,255,255,0.06); color: var(--text);
-            cursor: pointer; transition: all .22s; font-size: .8em; font-weight: 600;
-            font-family: inherit; letter-spacing: .04em;
-        }
-        .mode-btn.active {
-            background: linear-gradient(135deg, var(--accent1), var(--accent3));
-            border-color: transparent; color: white;
-            box-shadow: 0 4px 14px rgba(255,107,107,.3);
-        }
-        .mode-btn:hover:not(.active) { background: rgba(255,255,255,.12); border-color: var(--glass-bd-h); }
-
-        /* Speaker layout */
-        .speaker-layout {
-            position: relative; width: 100%; height: 210px; margin: 14px 0;
-            background: rgba(255,255,255,.025); border-radius: var(--radius-md);
-            border: 1px solid var(--glass-bd);
-        }
-        .speaker-node {
-            position: absolute; transform: translate(-50%,-50%);
-            display: flex; flex-direction: column; align-items: center; gap: 4px;
-        }
-        .speaker-icon {
-            width: 46px; height: 46px; border-radius: 50%;
-            background: rgba(255,255,255,0.07); border: 2px solid rgba(255,255,255,0.18);
-            display: flex; align-items: center; justify-content: center;
-            font-size: 18px; transition: all .25s;
-        }
-        .speaker-icon.has-device {
-            border-color: var(--accent2);
-            background: rgba(78,205,196,0.12);
-            box-shadow: 0 0 12px rgba(78,205,196,.25);
-        }
-        .speaker-label { font-size: 9px; color: var(--text-muted); text-align: center; max-width: 68px; line-height: 1.35; font-weight: 500; }
-        .listener-icon {
-            position: absolute; top: 50%; left: 50%;
-            transform: translate(-50%,-50%); font-size: 26px; opacity: .4;
-        }
-
-        /* Participants */
-        .participant-list { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 8px; }
-        .participant-chip {
-            display: inline-flex; align-items: center; gap: 6px;
-            padding: 5px 12px; border-radius: 20px;
-            background: rgba(255,255,255,0.07); border: 1px solid var(--glass-bd);
-            font-size: .8em; font-weight: 500;
-        }
-        .participant-chip .dot {
-            width: 6px; height: 6px; border-radius: 50%; background: var(--accent2);
-            box-shadow: 0 0 5px var(--accent2);
-        }
-
-        /* ── Hint / helper text ── */
-        .hint-text { margin: 0; font-size: .78em; color: var(--text-dim); line-height: 1.5; }
-        .section-hint { margin: 0 0 9px; font-size: .78em; color: var(--text-dim); font-weight: 500; }
-
-        /* ── Virtual Driver ── */
-        .vad-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
-        @media (max-width: 600px) { .vad-grid { grid-template-columns: 1fr; } }
-        .vad-step {
-            background: rgba(255,255,255,.045); border-radius: var(--radius-md);
-            padding: 14px 16px; border: 1px solid var(--glass-bd);
-        }
-        .step-num {
-            width: 26px; height: 26px; border-radius: 50%;
-            background: linear-gradient(135deg, var(--accent1), var(--accent3));
-            display: inline-flex; align-items: center; justify-content: center;
-            font-size: .75em; font-weight: 800; margin-bottom: 9px;
-            box-shadow: 0 3px 12px rgba(255,107,107,.3);
-        }
-        .vad-step p { margin: 0; font-size: .83em; color: var(--text-muted); line-height: 1.6; }
-        .vad-step p strong { color: var(--text); }
-
-        .vad-download-row { display: flex; gap: 10px; flex-wrap: wrap; }
-        .btn-outline {
-            padding: 9px 17px; border: 1px solid var(--glass-bd-h);
-            background: rgba(255,255,255,.05); color: var(--text);
-            border-radius: var(--radius-sm); cursor: pointer; font-size: .83em;
-            font-family: inherit; font-weight: 500; transition: all .22s;
-        }
-        .btn-outline:hover { background: rgba(255,255,255,.12); border-color: rgba(255,255,255,.28); transform: translateY(-1px); }
-
-        /* ── Scrollbar ── */
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,.15); border-radius: 3px; }
-        ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,.25); }
-
-        /* ── Responsive tweaks ── */
-        @media (max-width: 520px) {
-            body { padding: 16px 14px 40px; }
-            .header h1 { font-size: 2em; }
-            .card { padding: 18px 16px; }
-        }
-    </style>
+        :root { --bg: #050512; --accent: #ff6b6b; --teal: #4ecdc4; --indigo: #a78bfa; }
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: var(--bg); color: #f8fafc; overflow-x: hidden; }
+        .glass { background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.08); }
+        .btn-gradient { background: linear-gradient(135deg, var(--accent), var(--indigo)); transition: 0.3s; box-shadow: 0 4px 15px rgba(255, 107, 107, 0.2); }
+        .btn-gradient:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(255, 107, 107, 0.4); }
+        .btn-gradient:disabled { opacity: 0.2; cursor: not-allowed; transform: none !important; box-shadow: none !important; }
+        .input-glow { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); outline: none; transition: 0.2s; }
+        .input-glow:focus { border-color: var(--teal); background: rgba(255,255,255,0.1); }
+        #player-container { position: relative; width: 100%; padding-top: 56.25%; border-radius: 1.5rem; overflow: hidden; background: #000; box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
+        #player { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+        .aurora { position: fixed; inset: 0; z-index: -1; background: radial-gradient(circle at 10% 10%, rgba(255, 107, 107, 0.1) 0%, transparent 40%), radial-gradient(circle at 90% 90%, rgba(78, 205, 196, 0.05) 0%, transparent 40%); }
     </style>
 </head>
-<body>
-    <!-- Connection badge -->
-    <div class="connection-status disconnected" id="connectionStatus">
-        <span class="conn-dot"></span> Disconnected
+<body class="min-h-screen">
+    <div class="aurora"></div>
+
+    <!-- Notification Toast -->
+    <div id="toast" class="fixed top-8 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 px-6 py-3 rounded-full glass text-[10px] font-bold uppercase tracking-widest transition-all transform -translate-y-32">
+        <span id="toast-dot" class="w-2 h-2 rounded-full bg-blue-500"></span>
+        <span id="toast-text">Initializing...</span>
     </div>
 
-    <!-- Header -->
-    <div class="header">
-        <div class="header-logo">
-            <div class="logo-icon">&#127925;</div>
-            <h1>AuraSync</h1>
-        </div>
-        <p>Live Audio Broadcast &amp; Surround Sound</p>
-    </div>
+    <main class="max-w-xl mx-auto px-6 py-8 flex flex-col min-h-screen">
+        
+        <header class="text-center mb-8">
+            <h1 class="text-4xl font-black italic tracking-tighter bg-gradient-to-r from-[#ff6b6b] to-[#a78bfa] bg-clip-text text-transparent">AuraSync</h1>
+            <p class="text-[9px] font-bold text-white/20 uppercase tracking-[0.4em] mt-1">Multi-Speaker Command Center</p>
+        </header>
 
-    <!-- Status bar -->
-    <div id="status">Connecting&#8230;</div>
-
-    <!-- Session controls -->
-    <div class="session-controls">
-        <input type="text" id="sessionId" placeholder="Enter or generate a Session ID">
-        <button onclick="createSession()">Create Session</button>
-        <button onclick="joinSession()">Join Session</button>
-        <button onclick="leaveSession()">Leave Session</button>
-    </div>
-    <div class="current-session" id="currentSession"></div>
-
-    <!-- ══ Broadcast ══ -->
-    <div class="card">
-        <h3>
-            <span class="card-icon">&#128225;</span> Live Broadcast
-            <span id="liveBadge" style="display:none;margin-left:auto">
-                <span class="live-badge"><span class="live-dot"></span>LIVE</span>
-            </span>
-        </h3>
-
-        <!-- No session state -->
-        <div id="broadcastNoSession">
-            <p class="hint-text">Create or join a session to start broadcasting or listening.</p>
-        </div>
-
-        <!-- Host view -->
-        <div id="broadcastHostView" style="display:none">
-            <p class="section-hint">Choose an audio source to broadcast to all connected devices:</p>
-            <div style="display:flex;gap:10px;flex-wrap:wrap">
-                <button class="btn-source" id="btnSystem" onclick="startStreaming('system')">
-                    <span class="material-icons" style="font-size:18px;vertical-align:middle">computer</span>
-                    System Audio
-                </button>
-                <button class="btn-source" id="btnMic" onclick="startStreaming('mic')">
-                    <span class="material-icons" style="font-size:18px;vertical-align:middle">mic</span>
-                    Microphone
-                </button>
-            </div>
-            <div id="hostStreamInfo" style="display:none">
-                <div class="stream-info-row">
-                    <span id="hostSourceLabel" style="font-size:.88em;font-weight:600;color:var(--accent2)"></span>
-                    <span class="listener-count" id="listenerCount"></span>
-                    <button class="btn-outline" onclick="stopStreaming()"
-                            style="color:var(--accent1);border-color:rgba(255,107,107,.28);margin-left:auto">
-                        <span class="material-icons" style="font-size:14px;vertical-align:middle">stop</span>
-                        Stop Broadcast
-                    </button>
-                </div>
-                <p class="hint-text" style="margin-top:10px">
-                    &#128161; <strong>System Audio tip:</strong> a screen-share dialog will appear &#8212;
-                    select any window or tab and tick <strong>&#8220;Share audio&#8221;</strong> before confirming.
-                </p>
-            </div>
-        </div>
-
-        <!-- Guest view -->
-        <div id="broadcastGuestView" style="display:none">
-            <div id="guestWaiting">
-                <p class="hint-text" style="display:flex;align-items:center;gap:8px">
-                    <span class="material-icons" style="font-size:18px;opacity:.45">hourglass_empty</span>
-                    Waiting for the host to start a broadcast&hellip;
-                </p>
-            </div>
-            <div id="guestReady" style="display:none">
-                <button class="btn-source" id="btnListen" onclick="activateListening()">
-                    <span class="material-icons" style="font-size:18px;vertical-align:middle">headphones</span>
-                    Tap to Listen
-                </button>
-                <div id="guestListeningInfo" style="display:none;margin-top:14px">
-                    <span class="listening-badge"><span class="listen-dot"></span>Listening Live</span>
-                    <div class="slider-container">
-                        <span class="material-icons slider-icon">volume_up</span>
-                        <input type="range" class="slider volume-slider" id="guestVolumeSlider" min="0" max="100" value="80">
-                        <span class="volume-label" id="guestVolumePercent">80%</span>
+        <!-- SETUP VIEW -->
+        <div id="view-setup" class="space-y-4">
+            <div class="glass p-8 rounded-[40px] space-y-6">
+                <div class="space-y-2">
+                    <label class="text-[9px] font-bold text-white/40 uppercase tracking-widest px-2">Alphanumeric Room Code</label>
+                    <div class="relative">
+                        <input type="text" id="code-input" maxlength="6" placeholder="------" class="input-glow w-full py-5 rounded-2xl text-3xl font-black text-center uppercase tracking-widest">
+                        <button id="btn-refresh" class="absolute right-4 top-1/2 -translate-y-1/2 text-white/20 hover:text-white/60">
+                            <span class="material-icons-round">autorenew</span>
+                        </button>
                     </div>
                 </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <button id="btn-host" disabled class="btn-gradient py-5 rounded-2xl font-black text-xs tracking-widest">HOST</button>
+                    <button id="btn-join" disabled class="bg-white/5 hover:bg-white/10 py-5 rounded-2xl font-black text-xs tracking-widest border border-white/10 transition-all">JOIN</button>
+                </div>
+                <p id="net-status" class="text-center text-[9px] font-bold text-white/20 uppercase">Establishing Secure Connection...</p>
             </div>
         </div>
 
-        <!-- Hidden audio output for guests -->
-        <audio id="remoteAudio" autoplay playsinline style="display:none"></audio>
-    </div>
+        <!-- DASHBOARD VIEW -->
+        <div id="view-dash" class="hidden space-y-6 animate-in slide-in-from-bottom-8 duration-700">
+            <div class="glass p-6 rounded-[32px] space-y-6">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <p class="text-[9px] font-bold text-white/30 uppercase tracking-widest">Active Room</p>
+                        <h2 id="room-display" class="text-2xl font-black tracking-tighter text-white">------</h2>
+                    </div>
+                    <button id="btn-leave" class="p-2 glass rounded-full text-white/40 hover:text-white transition-all">
+                        <span class="material-icons-round text-sm">logout</span>
+                    </button>
+                </div>
 
-    <!-- ══ Surround Sound Configuration ══ -->
-    <div class="card" id="surroundSection">
-        <h3><span class="card-icon">&#128266;</span> Surround Sound Configuration</h3>
+                <div id="player-container">
+                    <div id="player"></div>
+                </div>
 
-        <!-- Mode picker (host only) -->
-        <div id="surroundModeRow" style="display:none">
-            <p class="section-hint">
-                Select surround mode (host only):
-            </p>
-            <div class="surround-mode-row" id="surroundModeBtns"></div>
-        </div>
+                <div class="px-1">
+                    <p class="text-[9px] font-bold text-teal-400 uppercase tracking-widest mb-1">Now Playing</p>
+                    <h3 id="current-title" class="text-sm font-bold truncate">Waiting for track...</h3>
+                </div>
 
-        <!-- Visual speaker layout -->
-        <div class="speaker-layout" id="speakerLayout">
-            <div class="listener-icon">&#129489;</div>
-        </div>
+                <!-- ADMIN COMMANDS -->
+                <div id="admin-panel" class="hidden space-y-4 pt-4 border-t border-white/5">
+                    <div class="space-y-2">
+                        <div class="flex gap-2">
+                            <input type="text" id="yt-url" placeholder="Paste YouTube link here..." class="flex-1 input-glow py-3 px-4 rounded-xl text-xs">
+                            <button id="btn-add-track" class="bg-teal-500 hover:bg-teal-400 p-3 rounded-xl transition-all">
+                                <span class="material-icons-round text-white">add</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="flex gap-2">
+                        <button id="btn-play-pause" class="flex-1 bg-white/10 hover:bg-white/20 py-3 rounded-xl font-bold text-[10px] flex items-center justify-center gap-2">
+                            <span class="material-icons-round text-sm">play_pause</span> PLAY / PAUSE
+                        </button>
+                        <button id="btn-next" class="bg-white/10 hover:bg-white/20 px-6 rounded-xl transition-all">
+                            <span class="material-icons-round text-sm">skip_next</span>
+                        </button>
+                    </div>
+                </div>
 
-        <!-- Participants -->
-        <div id="participantSection" style="display:none">
-            <p class="section-hint" style="margin-top:14px">Active participants:</p>
-            <div class="participant-list" id="participantList"></div>
-        </div>
-    </div>
-
-    <!-- ══ Virtual Audio Driver ══ -->
-    <div class="card">
-        <h3><span class="card-icon">&#128187;</span> AuraSync Virtual Audio Driver</h3>
-        <p class="hint-text" style="margin-bottom:16px">
-            Install the AuraSync Virtual Audio Driver to make any Windows or macOS machine appear as an audio
-            output device. Audio routed to this virtual device is automatically streamed to all
-            devices in your session &#8212; turning phones, tablets and laptops into a wireless surround system.
-        </p>
-        <div class="vad-grid">
-            <div class="vad-step">
-                <div class="step-num">1</div>
-                <p><strong>Download &amp; Install</strong><br>
-                   Download the installer for your OS and run it. No reboot required.</p>
+                <!-- GUEST COMMANDS -->
+                <div id="guest-panel" class="hidden space-y-3">
+                    <button id="btn-join-audio" class="w-full btn-gradient py-4 rounded-2xl font-black text-xs tracking-widest">START LISTENING</button>
+                    <button id="btn-nudge" class="w-full bg-white/5 py-3 rounded-xl text-[10px] font-bold flex items-center justify-center gap-2 border border-white/5">
+                        <span class="material-icons-round text-xs">shutter_speed</span> MANUAL NUDGE (RESYNC)
+                    </button>
+                </div>
             </div>
-            <div class="vad-step">
-                <div class="step-num">2</div>
-                <p><strong>Set as Default Output</strong><br>
-                   In OS sound settings, set <em>&#8220;AuraSync Virtual Out&#8221;</em> as the default playback device.</p>
-            </div>
-            <div class="vad-step">
-                <div class="step-num">3</div>
-                <p><strong>Join an AuraSync Session</strong><br>
-                   Any audio played through the virtual device streams to your session automatically.</p>
-            </div>
-            <div class="vad-step">
-                <div class="step-num">4</div>
-                <p><strong>Configure Surround Sound</strong><br>
-                   Use the Surround Sound panel above to select the speaker layout for your session.</p>
+
+            <!-- PLAYLIST -->
+            <div class="glass p-6 rounded-[32px] space-y-4">
+                <h3 class="text-[10px] font-black uppercase tracking-widest text-white/30">Up Next</h3>
+                <div id="queue-list" class="space-y-2 max-h-72 overflow-y-auto pr-1"></div>
             </div>
         </div>
-        <div class="vad-download-row">
-            <button class="btn-outline" onclick="downloadDriver('windows')">&#127959; Windows (.exe)</button>
-            <button class="btn-outline" onclick="downloadDriver('mac')">&#127822; macOS (.pkg)</button>
-            <button class="btn-outline" onclick="downloadDriver('linux')">&#128039; Linux (.deb)</button>
-        </div>
-        <p class="hint-text" style="margin-top:12px">
-            Alternatively: use VB-Cable (Windows/Mac) or PulseAudio null-sink (Linux) as a virtual audio output device.
-        </p>
-    </div>
+    </main>
 
     <script>
-    // ══════════════════════════════════════════════════════════════════
-    // 1.  FIREBASE INIT
-    // ══════════════════════════════════════════════════════════════════
-    const firebaseConfig = {
-        apiKey:            'AIzaSyAvdsISdxERqIrZbyecvwKsf2V7lFuPWkc',
-        authDomain:        'zync-2baf2.firebaseapp.com',
-        projectId:         'zync-2baf2',
-        storageBucket:     'zync-2baf2.appspot.com',
-        messagingSenderId: '388386446447',
-        appId:             '1:388386446447:web:9659826f61a4aaec01019a'
-    };
-    const app  = firebase.initializeApp(firebaseConfig);
-    const db   = firebase.firestore();
-    const auth = firebase.auth();
+        // Use Compat Global Objects to prevent ESM module scoping issues in sandboxes
+        const config = {
+            apiKey:            'AIzaSyAvdsISdxERqIrZbyecvwKsf2V7lFuPWkc',
+            authDomain:        'zync-2baf2.firebaseapp.com',
+            projectId:         'zync-2baf2',
+            storageBucket:     'zync-2baf2.appspot.com',
+            messagingSenderId: '388386446447',
+            appId:             '1:388386446447:web:9659826f61a4aaec01019a'
+        };
 
-    const connectionStatus = document.getElementById('connectionStatus');
-    auth.signInAnonymously()
-        .then(() => {
-            connectionStatus.className = 'connection-status connected';
-            connectionStatus.innerHTML = '<span class="conn-dot"></span> Connected';
-            myUserId = auth.currentUser.uid;
-            setStatus('Ready. Create or join a session to start.', 'success');
-        })
-        .catch(err => {
-            connectionStatus.className = 'connection-status auth-error';
-            connectionStatus.innerHTML = '<span class="conn-dot"></span> Auth Error';
-            setStatus('Authentication failed: ' + err.message, 'error');
+        firebase.initializeApp(config);
+        const db = firebase.firestore();
+        const auth = firebase.auth();
+        const artifactId = 'aura-sync-v3';
+
+        let user = null;
+        let roomCode = "";
+        let isHost = false;
+        let ytPlayer = null;
+        let masterState = { videoId: '', playing: false, currentTime: 0, queue: [] };
+
+        const toast = (msg, mode = 'info') => {
+            const el = document.getElementById('toast');
+            const txt = document.getElementById('toast-text');
+            const dot = document.getElementById('toast-dot');
+            txt.innerText = msg;
+            dot.className = `w-2 h-2 rounded-full ${mode === 'success' ? 'bg-green-500' : mode === 'error' ? 'bg-rose-500' : 'bg-blue-500'}`;
+            el.style.transform = 'translate(-50%, 0)';
+            setTimeout(() => { el.style.transform = 'translate(-50%, -128px)'; }, 3000);
+        };
+
+        // --- AUTH & INIT ---
+        auth.signInAnonymously().then(cred => {
+            user = cred.user;
+            document.getElementById('btn-host').disabled = false;
+            document.getElementById('btn-join').disabled = false;
+            document.getElementById('net-status').innerText = "Connected to Aura Network";
+            document.getElementById('net-status').style.color = "#4ecdc4";
+            toast("System Online", "success");
         });
 
-    // ══════════════════════════════════════════════════════════════════
-    // 2.  GLOBAL STATE
-    // ══════════════════════════════════════════════════════════════════
-    let myUserId         = null;
-    let myNickname       = 'Device\u00a0' + Math.random().toString(36).slice(2,5).toUpperCase();
-    let isHost           = false;
-    let currentSessionId = null;
-    let sessionListener  = null;
-    let presenceListener = null;
-    let participants     = {};   // { userId: { nickname, joinedAt } }
-    let surroundMode     = 'stereo';
-    let hostIsStreaming   = false;  // tracks remote isStreaming state for guests
+        const genCode = () => {
+            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+            let res = '';
+            for(let i=0; i<6; i++) res += chars.charAt(Math.floor(Math.random() * chars.length));
+            document.getElementById('code-input').value = res;
+        };
 
-    // ── Host streaming state ──
-    let localStream     = null;
-    let isStreaming     = false;
-    // peerConnections: { clientId: { pc, hostCandidates[], unsubSignal } }
-    let peerConnections = {};
+        document.getElementById('btn-refresh').onclick = genCode;
+        document.getElementById('btn-host').onclick = () => entry(true);
+        document.getElementById('btn-join').onclick = () => entry(false);
+        document.getElementById('btn-leave').onclick = () => location.reload();
 
-    // ── Client listening state ──
-    let clientPc           = null;
-    let clientSignalUnsub  = null;
-    let hostCandsProcessed = 0;
+        async function entry(hostMode) {
+            roomCode = document.getElementById('code-input').value.trim().toUpperCase();
+            if (roomCode.length < 3) return toast("Enter valid code", "error");
 
-    const RTC_CONFIG = {
-        iceServers: [
-            { urls: 'stun:stun.l.google.com:19302' },
-            { urls: 'stun:stun1.l.google.com:19302' },
-            // TURN relay servers are required for mobile networks (carrier NAT / symmetric NAT).
-            // These use the publicly available Open Relay Project credentials.
-            {
-                urls: [
-                    'turn:openrelay.metered.ca:80',
-                    'turn:openrelay.metered.ca:443',
-                    'turn:openrelay.metered.ca:443?transport=tcp'
-                ],
-                username:   'openrelayproject',
-                credential: 'openrelayproject'
-            }
-        ]
-    };
+            isHost = hostMode;
+            // Matches: /artifacts/{appId}/public/data/{roomName}
+            const roomRef = db.collection('artifacts').doc(artifactId).collection('public').doc('data').collection(roomCode).doc('master');
 
-    const SURROUND_MODES = {
-        'stereo': [
-            { name: 'Left',         x: 22, y: 14 },
-            { name: 'Right',        x: 78, y: 14 }
-        ],
-        '2.1': [
-            { name: 'Left',         x: 20, y: 14 },
-            { name: 'Right',        x: 80, y: 14 },
-            { name: 'Subwoofer',    x: 50, y: 88 }
-        ],
-        '5.1': [
-            { name: 'Front Left',   x: 20, y: 13 },
-            { name: 'Front Center', x: 50, y: 8  },
-            { name: 'Front Right',  x: 80, y: 13 },
-            { name: 'Rear Left',    x: 14, y: 80 },
-            { name: 'Rear Right',   x: 86, y: 80 },
-            { name: 'Subwoofer',    x: 50, y: 92 }
-        ],
-        '7.1': [
-            { name: 'Front Left',   x: 20, y: 11 },
-            { name: 'Front Center', x: 50, y: 7  },
-            { name: 'Front Right',  x: 80, y: 11 },
-            { name: 'Side Left',    x: 6,  y: 50 },
-            { name: 'Side Right',   x: 94, y: 50 },
-            { name: 'Rear Left',    x: 20, y: 87 },
-            { name: 'Rear Right',   x: 80, y: 87 },
-            { name: 'Subwoofer',    x: 50, y: 93 }
-        ]
-    };
-
-    const $ = id => document.getElementById(id);
-
-    // ══════════════════════════════════════════════════════════════════
-    // 3.  STATUS HELPER
-    // ══════════════════════════════════════════════════════════════════
-    function setStatus(msg, type) {
-        const el = $('status');
-        el.textContent = msg;
-        el.className = type || '';
-    }
-
-    // ══════════════════════════════════════════════════════════════════
-    // 4.  SESSION MANAGEMENT
-    // ══════════════════════════════════════════════════════════════════
-    function generateSessionId() {
-        return Math.random().toString(36).slice(2, 8).toUpperCase();
-    }
-
-    async function ensureAuth() {
-        if (!auth.currentUser) await auth.signInAnonymously();
-        myUserId = auth.currentUser.uid;
-    }
-
-    async function createSession() {
-        await ensureAuth();
-        const sessionId = generateSessionId();
-        currentSessionId = sessionId;
-        isHost = true;
-        try {
-            await db.collection('sessions').doc(sessionId).set({
-                ownerId:      myUserId,
-                isStreaming:  false,
-                surroundMode: 'stereo',
-                created:      firebase.firestore.FieldValue.serverTimestamp()
-            });
-            $('sessionId').value = sessionId;
-            $('currentSession').textContent = 'Session: ' + sessionId + '  (Host)';
-            await registerPresence(sessionId);
-            startSessionListener(sessionId);
-            initSurroundUI();
-            updateBroadcastUI();
-            setStatus('Session ' + sessionId + ' created! Share this ID with other devices.', 'success');
-        } catch (err) {
-            currentSessionId = null; isHost = false;
-            setStatus('Error creating session: ' + err.message, 'error');
-        }
-    }
-
-    async function joinSession() {
-        await ensureAuth();
-        const sessionId = $('sessionId').value.trim().toUpperCase();
-        if (!sessionId) { setStatus('Enter a session ID first.', 'error'); return; }
-        try {
-            const snap = await db.collection('sessions').doc(sessionId).get();
-            if (!snap.exists) { setStatus('Session not found. Check the session ID.', 'error'); return; }
-            const data = snap.data();
-            currentSessionId = sessionId;
-            isHost       = (data.ownerId === myUserId);
-            surroundMode = data.surroundMode || 'stereo';
-            $('currentSession').textContent = 'Session: ' + sessionId + '  (' + (isHost ? 'Host' : 'Guest') + ')';
-            await registerPresence(sessionId);
-            startSessionListener(sessionId);
-            initSurroundUI();
-            updateBroadcastUI();
-            // If the host is already streaming when we join, start listening immediately
-            if (!isHost && data.isStreaming) {
-                hostIsStreaming = true;
-                $('guestWaiting').style.display = 'none';
-                $('guestReady').style.display   = 'block';
-                subscribeToHostStream();
-            }
-            setStatus('Joined session ' + sessionId, 'success');
-        } catch (err) {
-            setStatus('Error joining session: ' + err.message, 'error');
-        }
-    }
-
-    async function leaveSession() {
-        stopStreaming();
-        cleanupClientConnection();
-        if (sessionListener)  { sessionListener();  sessionListener  = null; }
-        if (presenceListener) { presenceListener(); presenceListener = null; }
-        if (currentSessionId && myUserId) {
             try {
-                await db.collection('sessions').doc(currentSessionId)
-                        .collection('participants').doc(myUserId).delete();
-            } catch (_) {}
-        }
-        currentSessionId = null; isHost = false; participants = {};
-        hostIsStreaming = false;
-        $('currentSession').textContent = '';
-        updateBroadcastUI();
-        renderSurroundLayout();
-        $('participantSection').style.display = 'none';
-        $('surroundModeRow').style.display    = 'none';
-        setStatus('Left session.');
-    }
-
-    // ── Presence ──
-    async function registerPresence(sessionId) {
-        if (!myUserId) return;
-        const ref = db.collection('sessions').doc(sessionId).collection('participants').doc(myUserId);
-        await ref.set({ nickname: myNickname, joinedAt: Date.now() });
-        if (presenceListener) presenceListener();
-        presenceListener = db.collection('sessions').doc(sessionId).collection('participants')
-            .onSnapshot(snap => {
-                participants = {};
-                snap.forEach(doc => { participants[doc.id] = doc.data(); });
-                renderParticipantList();
-                // When streaming, create connections for any new participant
-                if (isHost && isStreaming) {
-                    Object.keys(participants).forEach(clientId => {
-                        if (clientId !== myUserId && !peerConnections[clientId]) {
-                            createPeerConnectionForClient(clientId);
-                        }
+                const snap = await roomRef.get();
+                if (isHost) {
+                    await roomRef.set({
+                        hostId: user.uid,
+                        videoId: 'dQw4w9WgXcQ',
+                        playing: false,
+                        currentTime: 0,
+                        queue: [],
+                        lastSync: Date.now()
                     });
+                } else if (!snap.exists) {
+                    return toast("Room Not Found", "error");
                 }
-                updateListenerCount();
-            });
-    }
 
-    // ══════════════════════════════════════════════════════════════════
-    // 5.  SESSION LISTENER
-    // ══════════════════════════════════════════════════════════════════
-    function startSessionListener(sessionId) {
-        if (sessionListener) sessionListener();
-        sessionListener = db.collection('sessions').doc(sessionId).onSnapshot(doc => {
-            if (!doc.exists) { setStatus('Session ended.'); leaveSession(); return; }
-            const data = doc.data();
-            if (data.surroundMode && data.surroundMode !== surroundMode) {
-                surroundMode = data.surroundMode;
-                renderSurroundLayout();
-            }
-            if (!isHost) {
-                if (data.isStreaming && !hostIsStreaming) {
-                    // Host just started streaming
-                    hostIsStreaming = true;
-                    $('guestWaiting').style.display = 'none';
-                    $('guestReady').style.display   = 'block';
-                    subscribeToHostStream();
-                } else if (!data.isStreaming && hostIsStreaming) {
-                    // Host stopped streaming
-                    hostIsStreaming = false;
-                    $('guestWaiting').style.display       = 'block';
-                    $('guestReady').style.display         = 'none';
-                    $('guestListeningInfo').style.display = 'none';
-                    $('btnListen').style.display          = 'inline-flex';
-                    $('liveBadge').style.display          = 'none';
-                    cleanupClientConnection();
-                    setStatus('Broadcast ended by host.');
-                }
-            }
-        });
-    }
+                document.getElementById('view-setup').classList.add('hidden');
+                document.getElementById('view-dash').classList.remove('hidden');
+                document.getElementById('room-display').innerText = roomCode;
 
-    // ══════════════════════════════════════════════════════════════════
-    // 6.  HOST STREAMING  (WebRTC broadcaster)
-    // ══════════════════════════════════════════════════════════════════
-    async function startStreaming(sourceType) {
-        if (!currentSessionId || !isHost) return;
-        try {
-            if (sourceType === 'system') {
-                if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
-                    setStatus('System audio capture is not supported in this browser. Use Chrome or Edge on desktop.', 'error');
-                    return;
-                }
-                setStatus('Opening screen-share dialog\u2026 select a window/tab and tick \u201cShare audio\u201d.', 'loading');
-                // video:true is required by some browsers to show the share dialog;
-                // we stop video tracks immediately after — only audio is needed.
-                localStream = await navigator.mediaDevices.getDisplayMedia({ audio: true, video: true });
-                localStream.getVideoTracks().forEach(t => t.stop());
-                if (localStream.getAudioTracks().length === 0) {
-                    setStatus('No audio track captured. Make sure to enable \u201cShare audio\u201d in the browser dialog.', 'error');
-                    localStream = null;
-                    return;
-                }
-            } else {
-                setStatus('Requesting microphone access\u2026', 'loading');
-                localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-            }
+                if (isHost) document.getElementById('admin-panel').classList.remove('hidden');
+                else document.getElementById('guest-panel').classList.remove('hidden');
 
-            // Use addEventListener so other handlers are not overwritten if more are added later
-            localStream.getTracks().forEach(track => {
-                track.addEventListener('ended', () => stopStreaming());
-            });
-
-            isStreaming = true;
-            await db.collection('sessions').doc(currentSessionId).update({ isStreaming: true });
-
-            // Create peer connections for every participant currently in the session
-            Object.keys(participants).forEach(clientId => {
-                if (clientId !== myUserId) createPeerConnectionForClient(clientId);
-            });
-
-            const sourceName = sourceType === 'system' ? 'System Audio' : 'Microphone';
-            $('hostSourceLabel').textContent  = '\uD83C\uDFA4 Broadcasting: ' + sourceName;
-            $('hostStreamInfo').style.display = 'block';
-            $('liveBadge').style.display      = 'inline-flex';
-            $('btnSystem').disabled           = true;
-            $('btnMic').disabled              = true;
-            updateListenerCount();
-            setStatus('Broadcasting ' + sourceName + ' to all connected devices.', 'success');
-        } catch (err) {
-            localStream = null;
-            if (err.name !== 'NotAllowedError' && err.name !== 'AbortError') {
-                setStatus('Could not start streaming: ' + err.message, 'error');
-            } else {
-                setStatus('Broadcast cancelled.', '');
+                initYT();
+                startSync();
+            } catch (e) {
+                console.error(e);
+                toast("Permission Denied", "error");
             }
         }
-    }
 
-    function stopStreaming() {
-        if (localStream) {
-            localStream.getTracks().forEach(t => t.stop());
-            localStream = null;
+        // --- YOUTUBE ENGINE ---
+        function initYT() {
+            window.onYouTubeIframeAPIReady = () => {
+                ytPlayer = new YT.Player('player', {
+                    height: '100%',
+                    width: '100%',
+                    videoId: 'dQw4w9WgXcQ',
+                    playerVars: { 'autoplay': 0, 'controls': 0, 'disablekb': 1, 'fs': 0, 'modestbranding': 1, 'rel': 0, 'playsinline': 1 },
+                    events: {
+                        'onReady': () => { if (isHost) setInterval(pushSync, 2000); }
+                    }
+                });
+            };
+            if (window.YT && window.YT.Player) onYouTubeIframeAPIReady();
         }
-        isStreaming = false;
-        Object.keys(peerConnections).forEach(id => closePeerForClient(id));
-        peerConnections = {};
-        if (currentSessionId) {
-            db.collection('sessions').doc(currentSessionId)
-              .update({ isStreaming: false }).catch(() => {});
-        }
-        $('hostStreamInfo').style.display = 'none';
-        $('liveBadge').style.display      = 'none';
-        if ($('btnSystem')) $('btnSystem').disabled = false;
-        if ($('btnMic'))    $('btnMic').disabled    = false;
-        if (currentSessionId) setStatus('Broadcast stopped.');
-    }
 
-    async function createPeerConnectionForClient(clientId) {
-        const signalRef = db.collection('sessions').doc(currentSessionId)
-                           .collection('signals').doc(clientId);
-        // Clear any stale signal doc before starting fresh
-        try { await signalRef.delete(); } catch (err) { console.warn('Signal delete error:', err); }
+        const parseID = (url) => {
+            const regex = /^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#&?]*).*/;
+            const match = url.match(regex);
+            return (match && match[7].length == 11) ? match[7] : false;
+        };
 
-        const pc             = new RTCPeerConnection(RTC_CONFIG);
-        const hostCandidates = [];
-        peerConnections[clientId] = { pc, hostCandidates, unsubSignal: null };
-
-        // Add the live audio tracks
-        localStream.getAudioTracks().forEach(track => pc.addTrack(track, localStream));
-
-        pc.onicecandidate = async event => {
-            if (!event.candidate) return;
-            hostCandidates.push({
-                candidate:     event.candidate.candidate,
-                sdpMLineIndex: event.candidate.sdpMLineIndex,
-                sdpMid:        event.candidate.sdpMid
-            });
+        const fetchMeta = async (vid) => {
             try {
-                await signalRef.set({ hostCandidates }, { merge: true });
-            } catch (err) { console.warn('Host ICE write error:', err); }
+                const res = await fetch(`https://noembed.com/embed?url=https://www.youtube.com/watch?v=${vid}`);
+                const d = await res.json();
+                return d.title || "YouTube Track";
+            } catch { return "YouTube Track"; }
         };
 
-        pc.onconnectionstatechange = () => {
-            if (pc.connectionState === 'failed' || pc.connectionState === 'closed') {
-                closePeerForClient(clientId);
-            }
-            updateListenerCount();
-        };
+        // --- ADMIN ACTIONS ---
+        document.getElementById('btn-add-track').onclick = async () => {
+            const url = document.getElementById('yt-url').value.trim();
+            const vid = parseID(url);
+            if (!vid) return toast("Invalid YouTube Link", "error");
 
-        // Create and write the offer
-        const offer = await pc.createOffer();
-        await pc.setLocalDescription(offer);
-        await signalRef.set({
-            offer:          { type: offer.type, sdp: offer.sdp },
-            hostCandidates: []
-        });
-
-        // Watch for the client\u2019s answer and ICE candidates
-        let clientCandsProcessed = 0;
-        const unsub = signalRef.onSnapshot(async snap => {
-            if (!snap.exists) return;
-            const data = snap.data();
-            if (data.answer && !pc.remoteDescription) {
-                try {
-                    await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
-                } catch (err) { console.warn('setRemoteDescription error (host):', err); }
-            }
-            const cands = data.clientCandidates || [];
-            for (let i = clientCandsProcessed; i < cands.length; i++) {
-                try { await pc.addIceCandidate(new RTCIceCandidate(cands[i])); } catch (err) { console.warn('addIceCandidate error (host):', err); }
-            }
-            clientCandsProcessed = cands.length;
-        });
-        peerConnections[clientId].unsubSignal = unsub;
-    }
-
-    function closePeerForClient(clientId) {
-        const entry = peerConnections[clientId];
-        if (!entry) return;
-        if (entry.unsubSignal) entry.unsubSignal();
-        try { entry.pc.close(); } catch (_) {}
-        delete peerConnections[clientId];
-        updateListenerCount();
-    }
-
-    function updateListenerCount() {
-        const countEl = $('listenerCount');
-        if (!countEl) return;
-        const total     = Object.keys(participants).filter(id => id !== myUserId).length;
-        const connected = Object.values(peerConnections)
-            .filter(e => e.pc && e.pc.connectionState === 'connected').length;
-        const connecting = Object.values(peerConnections)
-            .filter(e => e.pc && e.pc.connectionState === 'connecting').length;
-        const label = connecting > 0
-            ? connected + ' connected, ' + connecting + ' connecting'
-            : connected + '\u202f/\u202f' + total + ' listener' + (total !== 1 ? 's' : '') + ' connected';
-        countEl.textContent = label;
-    }
-
-    // ══════════════════════════════════════════════════════════════════
-    // 7.  CLIENT LISTENING  (WebRTC receiver)
-    // ══════════════════════════════════════════════════════════════════
-    function subscribeToHostStream() {
-        if (!currentSessionId || !myUserId || isHost) return;
-        cleanupClientConnection();
-
-        const signalRef = db.collection('sessions').doc(currentSessionId)
-                           .collection('signals').doc(myUserId);
-
-        clientPc           = new RTCPeerConnection(RTC_CONFIG);
-        hostCandsProcessed = 0;
-        const clientCandidates = [];
-
-        clientPc.ontrack = event => {
-            const audioEl = $('remoteAudio');
-            if (audioEl && audioEl.srcObject !== event.streams[0]) {
-                audioEl.srcObject = event.streams[0];
-            }
-        };
-
-        clientPc.onicecandidate = async event => {
-            if (!event.candidate) return;
-            clientCandidates.push({
-                candidate:     event.candidate.candidate,
-                sdpMLineIndex: event.candidate.sdpMLineIndex,
-                sdpMid:        event.candidate.sdpMid
+            toast("Resolving metadata...", "info");
+            const title = await fetchMeta(vid);
+            const roomRef = db.collection('artifacts').doc(artifactId).collection('public').doc('data').collection(roomCode).doc('master');
+            
+            await roomRef.update({
+                queue: firebase.firestore.FieldValue.arrayUnion({ id: Date.now(), videoId: vid, title: title })
             });
-            try {
-                await signalRef.set({ clientCandidates }, { merge: true });
-            } catch (err) { console.warn('Client ICE write error:', err); }
+            document.getElementById('yt-url').value = "";
+            toast("Track added", "success");
         };
 
-        clientSignalUnsub = signalRef.onSnapshot(async snap => {
-            if (!snap.exists || !clientPc) return;
-            const data = snap.data();
-            // Process the offer (once only)
-            if (data.offer && !clientPc.remoteDescription) {
-                try {
-                    await clientPc.setRemoteDescription(new RTCSessionDescription(data.offer));
-                    const answer = await clientPc.createAnswer();
-                    await clientPc.setLocalDescription(answer);
-                    await signalRef.set(
-                        { answer: { type: answer.type, sdp: answer.sdp } },
-                        { merge: true }
-                    );
-                } catch (err) { console.warn('Answer creation error:', err); }
-            }
-            // Process host ICE candidates (delta only to avoid re-adding)
-            const cands = data.hostCandidates || [];
-            for (let i = hostCandsProcessed; i < cands.length; i++) {
-                try { await clientPc.addIceCandidate(new RTCIceCandidate(cands[i])); } catch (err) { console.warn('addIceCandidate error (client):', err); }
-            }
-            hostCandsProcessed = cands.length;
-        });
-    }
-
-    async function activateListening() {
-        const audioEl = $('remoteAudio');
-        if (!audioEl || !audioEl.srcObject) {
-            setStatus('Stream not yet connected \u2014 please wait a moment and try again.', 'loading');
-            return;
-        }
-        try {
-            await audioEl.play();
-            $('btnListen').style.display          = 'none';
-            $('guestListeningInfo').style.display = 'block';
-            $('liveBadge').style.display          = 'inline-flex';
-            setStatus('Listening to live broadcast.', 'success');
-        } catch (err) {
-            setStatus('Could not play audio: ' + err.message, 'error');
-        }
-    }
-
-    function cleanupClientConnection() {
-        if (clientSignalUnsub) { clientSignalUnsub(); clientSignalUnsub = null; }
-        if (clientPc) { try { clientPc.close(); } catch (_) {} clientPc = null; }
-        hostCandsProcessed = 0;
-        const audioEl = $('remoteAudio');
-        if (audioEl) { audioEl.pause(); audioEl.srcObject = null; }
-    }
-
-    // ══════════════════════════════════════════════════════════════════
-    // 8.  BROADCAST UI
-    // ══════════════════════════════════════════════════════════════════
-    function updateBroadcastUI() {
-        $('broadcastNoSession').style.display = currentSessionId ? 'none'  : 'block';
-        $('broadcastHostView').style.display  = (currentSessionId && isHost)  ? 'block' : 'none';
-        $('broadcastGuestView').style.display = (currentSessionId && !isHost) ? 'block' : 'none';
-    }
-
-    // ══════════════════════════════════════════════════════════════════
-    // 9.  SURROUND SOUND
-    // ══════════════════════════════════════════════════════════════════
-    function initSurroundUI() {
-        if (isHost) {
-            $('surroundModeRow').style.display = 'block';
-            const row = $('surroundModeBtns');
-            row.innerHTML = Object.keys(SURROUND_MODES).map(m =>
-                '<button class="mode-btn ' + (m === surroundMode ? 'active' : '') + '" ' +
-                'onclick="setSurroundMode(\'' + m + '\')">' + m.toUpperCase() + '</button>'
-            ).join('');
-        }
-        $('participantSection').style.display = 'block';
-        renderSurroundLayout();
-    }
-
-    function setSurroundMode(mode) {
-        if (!isHost) return;
-        surroundMode = mode;
-        renderSurroundLayout();
-        document.querySelectorAll('.mode-btn').forEach(b => {
-            b.classList.toggle('active', b.textContent.toLowerCase() === mode);
-        });
-        if (currentSessionId) {
-            db.collection('sessions').doc(currentSessionId)
-              .update({ surroundMode: mode })
-              .catch(err => console.error('surroundMode update:', err));
-        }
-    }
-
-    function renderSurroundLayout() {
-        const layout   = $('speakerLayout');
-        const channels = SURROUND_MODES[surroundMode] || [];
-        layout.innerHTML = '<div class="listener-icon">&#129489;</div>';
-        channels.forEach(ch => {
-            const node = document.createElement('div');
-            node.className  = 'speaker-node';
-            node.style.left = ch.x + '%';
-            node.style.top  = ch.y + '%';
-            node.innerHTML  =
-                '<div class="speaker-icon">\uD83D\uDD0A</div>' +
-                '<span class="speaker-label">' + escapeHtml(ch.name) + '</span>';
-            layout.appendChild(node);
-        });
-    }
-
-    function renderParticipantList() {
-        const list  = $('participantList');
-        const items = Object.entries(participants).map(function(e) {
-            const uid = e[0]; const p = e[1];
-            return '<div class="participant-chip">' +
-                '<span class="dot"></span>' +
-                escapeHtml(p.nickname) + (uid === myUserId ? ' (you)' : '') +
-                '</div>';
-        });
-        list.innerHTML = items.length ? items.join('') :
-            '<span style="color:var(--text-dim);font-size:.83em">No participants yet.</span>';
-    }
-
-    // ══════════════════════════════════════════════════════════════════
-    // 10. VIRTUAL AUDIO DRIVER DOWNLOAD (info placeholder)
-    // ══════════════════════════════════════════════════════════════════
-    function downloadDriver(os) {
-        var msgs = {
-            windows: 'The AuraSync Virtual Audio Driver for Windows is coming soon.\n\nIn the meantime:\n1. Install VB-Cable from vb-audio.com (free)\n2. Set "CABLE Input (VB-Audio Virtual Cable)" as your default playback device\n3. Audio routed to this virtual device will stream to your session automatically.',
-            mac:     'The AuraSync Virtual Audio Driver for macOS is coming soon.\n\nIn the meantime:\n1. Install BlackHole 2ch (free) from existential.audio/blackhole\n2. Set "BlackHole 2ch" as your system audio output in System Preferences > Sound\n3. Audio routed through BlackHole will stream to your session automatically.',
-            linux:   'On Linux with PulseAudio:\n1. Create a null-sink:\n   pactl load-module module-null-sink sink_name=aurasync sink_properties=device.description=AuraSync\n2. Route your app audio to the "AuraSync" sink in the audio mixer\n3. Audio routed to the AuraSync sink will stream to your session automatically.'
+        document.getElementById('btn-play-pause').onclick = async () => {
+            if (!isHost) return;
+            const roomRef = db.collection('artifacts').doc(artifactId).collection('public').doc('data').collection(roomCode).doc('master');
+            await roomRef.update({
+                playing: !masterState.playing,
+                currentTime: ytPlayer.getCurrentTime(),
+                lastSync: Date.now()
+            });
         };
-        alert(msgs[os] || 'Coming soon!');
-    }
 
-    // ══════════════════════════════════════════════════════════════════
-    // 11. UTILITIES
-    // ══════════════════════════════════════════════════════════════════
-    function escapeHtml(str) {
-        if (!str) return '';
-        return String(str)
-            .replace(/&/g,  '&amp;')
-            .replace(/</g,  '&lt;')
-            .replace(/>/g,  '&gt;')
-            .replace(/"/g,  '&quot;');
-    }
+        document.getElementById('btn-next').onclick = async () => {
+            if (!isHost || masterState.queue.length === 0) return;
+            const next = masterState.queue[0];
+            const newQ = [...masterState.queue].slice(1);
+            const roomRef = db.collection('artifacts').doc(artifactId).collection('public').doc('data').collection(roomCode).doc('master');
+            await roomRef.update({
+                videoId: next.videoId,
+                queue: newQ,
+                currentTime: 0,
+                playing: true,
+                lastSync: Date.now()
+            });
+        };
 
-    // ══════════════════════════════════════════════════════════════════
-    // 12. EVENT LISTENERS & INIT
-    // ══════════════════════════════════════════════════════════════════
-    document.addEventListener('DOMContentLoaded', function() {
-        $('sessionId').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') joinSession();
-        });
-        $('guestVolumeSlider').addEventListener('input', function() {
-            const v = parseInt($('guestVolumeSlider').value);
-            $('guestVolumePercent').textContent = v + '%';
-            const audioEl = $('remoteAudio');
-            if (audioEl) audioEl.volume = v / 100;
-        });
-        renderSurroundLayout(); // show default stereo layout on load
+        window.moveItem = async (idx, act) => {
+            if (!isHost) return;
+            let q = [...masterState.queue];
+            if (act === 'up' && idx > 0) [q[idx], q[idx-1]] = [q[idx-1], q[idx]];
+            else if (act === 'del') q.splice(idx, 1);
+            
+            const roomRef = db.collection('artifacts').doc(artifactId).collection('public').doc('data').collection(roomCode).doc('master');
+            await roomRef.update({ queue: q });
+        };
 
-        // Disable "System Audio" on browsers that don't support getDisplayMedia (all mobile browsers).
-        // Microphone broadcasting remains fully supported on mobile.
-        if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
-            const btn = $('btnSystem');
-            if (btn) {
-                btn.disabled = true;
-                btn.title    = 'System audio capture is only available on desktop browsers.';
-                btn.style.opacity = '0.4';
-                btn.style.cursor  = 'not-allowed';
-                btn.innerHTML =
-                    '<span class="material-icons" style="font-size:18px;vertical-align:middle">computer</span>' +
-                    ' System Audio <span style="font-size:.75em;opacity:.7">(desktop only)</span>';
-            }
+        // --- SYNC CORE ---
+        async function pushSync() {
+            if (!isHost || !ytPlayer || typeof ytPlayer.getCurrentTime !== 'function') return;
+            const roomRef = db.collection('artifacts').doc(artifactId).collection('public').doc('data').collection(roomCode).doc('master');
+            await roomRef.update({
+                currentTime: ytPlayer.getCurrentTime(),
+                lastSync: Date.now()
+            });
         }
-    });
 
-    window.addEventListener('beforeunload', function() {
-        if (sessionListener) sessionListener();
-        stopStreaming();
-        cleanupClientConnection();
-    });
+        function startSync() {
+            const roomRef = db.collection('artifacts').doc(artifactId).collection('public').doc('data').collection(roomCode).doc('master');
+            roomRef.onSnapshot(async snap => {
+                const data = snap.data();
+                if (!data) return;
+                const oldVid = masterState.videoId;
+                masterState = data;
+
+                renderQueue(data.queue);
+
+                if (!ytPlayer) return;
+
+                if (oldVid !== data.videoId) {
+                    ytPlayer.loadVideoById(data.videoId);
+                    const title = await fetchMeta(data.videoId);
+                    document.getElementById('current-title').innerText = title;
+                }
+
+                if (data.playing) ytPlayer.playVideo(); else ytPlayer.pauseVideo();
+
+                if (!isHost) {
+                    const lag = (Date.now() - data.lastSync) / 1000;
+                    const target = data.currentTime + (data.playing ? lag : 0);
+                    if (Math.abs(ytPlayer.getCurrentTime() - target) > 1.5) {
+                        ytPlayer.seekTo(target, true);
+                    }
+                }
+            });
+        }
+
+        document.getElementById('btn-nudge').onclick = () => {
+            if (!masterState || !ytPlayer) return;
+            const lag = (Date.now() - masterState.lastSync) / 1000;
+            const target = masterState.currentTime + (masterState.playing ? lag : 0);
+            ytPlayer.seekTo(target, true);
+            toast("Manual Sync Applied", "success");
+        };
+
+        document.getElementById('btn-join-audio').onclick = () => {
+            if (!ytPlayer) return;
+            ytPlayer.playVideo();
+            ytPlayer.mute();
+            setTimeout(() => {
+                ytPlayer.unMute();
+                document.getElementById('btn-join-audio').innerText = "CONNECTED";
+                document.getElementById('btn-join-audio').disabled = true;
+                document.getElementById('btn-join-audio').classList.add('opacity-40');
+            }, 500);
+        };
+
+        function renderQueue(q) {
+            const list = document.getElementById('queue-list');
+            if (!q || q.length === 0) {
+                list.innerHTML = `<p class="text-center text-[10px] text-white/10 py-10 italic">Queue is empty</p>`;
+                return;
+            }
+            list.innerHTML = q.map((item, idx) => `
+                <div class="flex items-center gap-3 p-3 glass rounded-2xl border border-white/5 animate-in slide-in-from-right-2">
+                    <img src="https://img.youtube.com/vi/${item.videoId}/default.jpg" class="w-12 h-9 rounded-xl object-cover">
+                    <div class="flex-1 min-w-0">
+                        <p class="text-[10px] font-bold truncate">${item.title}</p>
+                    </div>
+                    ${isHost ? `
+                        <div class="flex gap-2">
+                            <button onclick="moveItem(${idx}, 'up')" class="hover:text-teal-400"><span class="material-icons-round text-xs">arrow_upward</span></button>
+                            <button onclick="moveItem(${idx}, 'del')" class="hover:text-rose-400"><span class="material-icons-round text-xs">close</span></button>
+                        </div>
+                    ` : ''}
+                </div>
+            `).join('');
+        }
+
     </script>
 </body>
 </html>
